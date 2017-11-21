@@ -18,19 +18,25 @@ var RoutesIndex = Routes{
 	Route{
 		"Index",
 		"GET",
-		"/",
+		"/v1",
 		v1.Index,
 	},
 	Route{
-		"UserIndex",
+		"PublicUserIndex",
 		"GET",
-		"/get/user",
-		v1.UserIndex,
+		"/v1/get/user",
+		v1.PublicUserIndex,
 	},
 	Route{
 		"AddUser",
 		"POST",
-		"/post/user",
+		"/v1/post/user",
 		v1.AddUser,
+	},
+	Route{
+		"GetPublicUserDetail",
+		"GET",
+		"/v1/get/user/{id}",
+		v1.GetPublicUserDetail,
 	},
 }

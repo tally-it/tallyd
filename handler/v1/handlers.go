@@ -21,12 +21,12 @@ func TodoShow(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "Todo show:", todoId)
 }
 
-func UserIndex(w http.ResponseWriter, r *http.Request) {
+func PublicUserIndex(w http.ResponseWriter, r *http.Request) {
 
 	//TODO: Check if Authenticated request is needed!
 
 	// get all user data
-	users := v1.GetUserIndex()
+	users := v1.GetPublicUserIndex()
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(http.StatusOK)
@@ -86,4 +86,53 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewEncoder(w).Encode(user.UserID); err != nil {
 		panic(err)
 	}
+}
+
+func GetPublicUserDetail(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+
+	var user v1.User
+
+	// Careful vars["id"] can be email, username or id
+	id := vars["id"]
+
+	if _, err := strconv.Atoi(id); err == nil {
+
+		id64, err:= strconv.ParseInt(vars["id"],10,64)
+		if err != nil {
+			log.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("Error " + strconv.Itoa(http.StatusBadRequest)))
+			//TODO Fehlerbehandlung
+		}
+		user, err = v1.GetPublicUserDataById(id64)
+		if err != nil {
+			log.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("Error " + strconv.Itoa(http.StatusBadRequest)))
+			//TODO Fehlerbehandlung
+		}
+
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(user); err != nil {
+			panic(err)
+		}
+
+	} else {
+
+		user, err = v1.GetPublicUserDataByUserName(id)
+		if err != nil {
+			log.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("Error " + strconv.Itoa(http.StatusBadRequest)))
+		}
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(user); err != nil {
+			panic(err)
+		}
+	}
+
+	return
 }
