@@ -202,12 +202,15 @@ func AddUser(user User) (userID int64, err error) {
 		return 0, err
 	}
 
+	if conf.NewUserOnlyByAdmin == true {
+		// TODO check user
+	}
+
 	// TODO
 	// check if data is complete
 	// is data null?
 	// is email a email?
 	// is username string? Numbers should be forbidden
-	// check if username is already gone (groß und kleinschreibung beachten) muss das noch beachtet werden? datenbank sagt nein?
 
 	tx, err := db.Begin()
 	if err != nil {
@@ -251,14 +254,6 @@ func AddUser(user User) (userID int64, err error) {
 	tx.Commit()
 
 	return user.UserID, nil
-}
-
-func GetAuthentication (user User) (User, err error){
-
-	// Check if userID is set
-	// TODO
-
-	return
 }
 
 func CheckPassword(user User, password []byte)(err error) {
