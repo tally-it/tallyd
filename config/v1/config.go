@@ -13,6 +13,7 @@ type Config struct {
 	DBPassword string
 	JWTSecret   string
 	JWTValidTime int64
+	NewUserOnlyByAdmin bool
 }
 
 func ReadConfig() (config Config) {
