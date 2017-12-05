@@ -11,6 +11,8 @@ type Config struct {
 	DBPort     string
 	DBUser     string
 	DBPassword string
+	JWTSecret   string
+	JWTValidTime int64
 }
 
 func ReadConfig() (config Config) {

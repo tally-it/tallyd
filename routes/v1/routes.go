@@ -39,4 +39,10 @@ var RoutesIndex = Routes{
 		"/v1/get/user/{id}",
 		v1.GetPublicUserDetail,
 	},
+	Route{
+		"GetAuthentication",
+		"POST",
+		"/v1/get/authentication",
+		v1.GetAuthentication,
+	},
 }

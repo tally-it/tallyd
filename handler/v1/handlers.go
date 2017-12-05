@@ -9,7 +9,7 @@ import (
 	"github.com/badoux/checkmail"
 	"strconv"
 	"github.com/marove2000/hack-and-pay/user/v1"
-)
+	)
 
 func Index(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "Welcome!")
@@ -43,16 +43,12 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	err := decoder.Decode(&user)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 	defer r.Body.Close()
 
 	// check user data
 	// check if all needed data is set
-	switch {
-	case user.UserName == "", user.UserName == "1":
-	}
-
 	if user.UserName == "" {
 		log.Println("No user name")
 		w.WriteHeader(http.StatusBadRequest)
@@ -130,9 +126,55 @@ func GetPublicUserDetail(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 		w.WriteHeader(http.StatusOK)
 		if err := json.NewEncoder(w).Encode(user); err != nil {
-			panic(err)
+			log.Println(err)
 		}
 	}
 
 	return
+}
+
+func GetAuthentication(w http.ResponseWriter, r *http.Request) {
+
+	var user, dbUser v1.User
+
+	// get body data
+	decoder := json.NewDecoder(r.Body)
+	err := decoder.Decode(&user)
+	if err != nil {
+		log.Println(err)
+	}
+	defer r.Body.Close()
+
+	// get public user data
+	dbUser, err = v1.GetPublicUserDataByUserName(user.UserName)
+	if err != nil {
+		log.Println(err)
+	}
+
+	// check password
+	err = v1.CheckPassword(dbUser, []byte(user.UserPassword))
+	if err != nil {
+		log.Println(err)
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	} else {
+		tokenString, err := v1.GetJWT(dbUser)
+		if err != nil {
+			log.Println(err)
+			log.Println(err)
+			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		} else {
+			println(tokenString)
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(dbUser); err != nil {
+		log.Println(err)
+	}
+
 }

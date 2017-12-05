@@ -7,14 +7,17 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"github.com/marove2000/hack-and-pay/config/v1"
 	"strconv"
+	"github.com/dgrijalva/jwt-go"
+	"time"
 )
 
 type User struct {
 	UserID int64 `json:"userID"`
 	UserName string `json:"userName"`
 	UserEmail string `json:"userEmail"`
-	UserPassword string `json:"UserPassword"`
+	UserPassword string `json:"userPassword"`
 	UserActive bool	`json:"userActive"`
+	UserIsAdmin bool `json:"userIsAdmin"`
 }
 
 func GetPublicUserIndex() (result []User ) {
@@ -30,7 +33,7 @@ func GetPublicUserIndex() (result []User ) {
 	}
 
 	// receive stuff
-	rows, err := db.Query("select userID, userName, userTimeBlocked from user WHERE userTimeDeleted IS NULL")
+	rows, err := db.Query("select userID, userName, userTimeBlocked, userIsAdmin from user WHERE userTimeDeleted IS NULL")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -40,11 +43,13 @@ func GetPublicUserIndex() (result []User ) {
 		userName string
 		userTimeBlocked sql.NullString
 		userTimeBlockedBool bool
+		userIsAdmin int
+		userIsAdminBool bool
 	)
 
 	// write rows to struct slice
 	for rows.Next() {
-		err := rows.Scan(&userID, &userName, &userTimeBlocked)
+		err := rows.Scan(&userID, &userName, &userTimeBlocked, &userIsAdmin)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -56,7 +61,14 @@ func GetPublicUserIndex() (result []User ) {
 			userTimeBlockedBool = true
 		}
 
-		result = append(result, User{UserID:userID,UserName: userName,UserActive: userTimeBlockedBool})
+		// check if user is admin
+		if userIsAdmin == 1 {
+			userIsAdminBool = true
+		} else {
+			userIsAdminBool = false
+		}
+
+		result = append(result, User{UserID:userID,UserName: userName,UserActive: userTimeBlockedBool, UserIsAdmin: userIsAdminBool})
 	}
 
 	// close DB connection
@@ -77,7 +89,7 @@ func GetPublicUserDataById(id int64) (user User, err error) {
 	}
 
 	// receive stuff
-	rows, err := db.Query("SELECT userID, userName, userTimeBlocked FROM user WHERE userID=" + strconv.FormatInt(id,10))
+	rows, err := db.Query("SELECT userID, userName, userTimeBlocked, userIsAdmin FROM user WHERE userID='" + strconv.FormatInt(id,10) + "'")
 	if err != nil {
 		return user, err
 	}
@@ -87,11 +99,13 @@ func GetPublicUserDataById(id int64) (user User, err error) {
 		userName string
 		userTimeBlocked sql.NullString
 		userTimeBlockedBool bool
+		userIsAdmin int
+		userIsAdminBool bool
 	)
 
 	// write rows to struct slice
 	for rows.Next() {
-		err := rows.Scan(&userID, &userName, &userTimeBlocked)
+		err := rows.Scan(&userID, &userName, &userTimeBlocked, &userIsAdmin)
 		if err != nil {
 			return user, err
 		}
@@ -103,13 +117,20 @@ func GetPublicUserDataById(id int64) (user User, err error) {
 			userTimeBlockedBool = true
 		}
 
+		// check if user is admin
+		if userIsAdmin == 1 {
+			userIsAdminBool = true
+		} else {
+			userIsAdminBool = false
+		}
+
 	}
 
 	// close DB connection
 	defer db.Close()
 
 
-	return User{UserID:userID,UserName: userName,UserActive: userTimeBlockedBool}, nil
+	return User{UserID:userID,UserName: userName,UserActive: userTimeBlockedBool, UserIsAdmin: userIsAdminBool}, nil
 }
 
 func GetPublicUserDataByUserName(username string) (user User, err error) {
@@ -124,7 +145,7 @@ func GetPublicUserDataByUserName(username string) (user User, err error) {
 	}
 
 	// receive stuff
-	rows, err := db.Query("SELECT userID, userName, userTimeBlocked FROM user WHERE userName=" + username)
+	rows, err := db.Query("SELECT userID, userName, userTimeBlocked, userIsAdmin FROM user WHERE userName LIKE '" + username + "'")
 	if err != nil {
 		return user, err
 	}
@@ -134,11 +155,13 @@ func GetPublicUserDataByUserName(username string) (user User, err error) {
 		userName string
 		userTimeBlocked sql.NullString
 		userTimeBlockedBool bool
+		userIsAdmin int
+		userIsAdminBool bool
 	)
 
 	// write rows to struct slice
 	for rows.Next() {
-		err := rows.Scan(&userID, &userName, &userTimeBlocked)
+		err := rows.Scan(&userID, &userName, &userTimeBlocked, &userIsAdmin)
 		if err != nil {
 			return user, err
 		}
@@ -150,13 +173,21 @@ func GetPublicUserDataByUserName(username string) (user User, err error) {
 			userTimeBlockedBool = true
 		}
 
+		// check if user is admin
+
+		if userIsAdmin == 1 {
+			userIsAdminBool = true
+		} else {
+			userIsAdminBool = false
+		}
+
 	}
 
 	// close DB connection
 	defer db.Close()
 
 
-	return User{UserID:userID,UserName: userName,UserActive: userTimeBlockedBool}, nil
+	return User{UserID:userID,UserName: userName,UserActive: userTimeBlockedBool, UserIsAdmin: userIsAdminBool}, nil
 }
 
 func AddUser(user User) (userID int64, err error) {
@@ -220,4 +251,76 @@ func AddUser(user User) (userID int64, err error) {
 	tx.Commit()
 
 	return user.UserID, nil
+}
+
+func GetAuthentication (user User) (User, err error){
+
+	// Check if userID is set
+	// TODO
+
+	return
+}
+
+func CheckPassword(user User, password []byte)(err error) {
+
+	// get password-hash from database
+	// read config
+	var conf v1.Config
+	conf = v1.ReadConfig()
+
+	// connect to DB
+	db, err := sql.Open("mysql", conf.DBUser+":"+conf.DBPassword+"@tcp("+conf.DBServer+":"+conf.DBPort+")/"+conf.DBDatabase)
+	if err != nil {
+		return  err
+	}
+
+	// receive stuff
+	rows, err := db.Query("SELECT userAuthValue FROM userAuth WHERE userID='" + strconv.FormatInt(user.UserID, 10)  + "' AND userAuthMethod LIKE 'password'")
+	if err != nil {
+		return err
+	}
+
+	var (
+		userAuthValue string
+	)
+
+	// write rows to struct slice
+	for rows.Next() {
+		err := rows.Scan(&userAuthValue)
+		if err != nil {
+			return err
+		}
+	}
+
+	defer db.Close()
+
+	// compare hash
+	err = bcrypt.CompareHashAndPassword([]byte(userAuthValue), password)
+	if err != nil {
+		return err
+	} else {
+		return nil
+	}
+}
+
+func GetJWT(user User) (tokenString string, err error) {
+
+	// read config
+	var conf v1.Config
+	conf = v1.ReadConfig()
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"userID": user.UserID,
+		"userName": user.UserName,
+		"userActive": user.UserActive,
+		"userIsAdmin": user.UserIsAdmin,
+		"ExpiresAt": time.Now().Add(time.Second * time.Duration(conf.JWTValidTime)),
+	})
+
+	tokenString, err = token.SignedString([]byte(conf.JWTSecret))
+	if err != nil {
+		return "", err
+	} else {
+		return tokenString, err
+	}
 }
