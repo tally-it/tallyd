@@ -342,6 +342,5 @@ func GetLDAPAuthentication(user User) (err error) {
 	}
 
 	// user found and credentials are fine
-
 	return nil
 }

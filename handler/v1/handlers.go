@@ -109,21 +109,24 @@ func GetPublicUserDetail(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Println(err)
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte("Error " + strconv.Itoa(http.StatusBadRequest)))
-			//TODO Fehlerbehandlung
+			w.Write([]byte("Error " + strconv.Itoa(http.StatusInternalServerError)))
+			return
 		}
 		user, err = v1.GetPublicUserDataById(id64)
 		if err != nil {
 			log.Println(err)
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte("Error " + strconv.Itoa(http.StatusBadRequest)))
-			//TODO Fehlerbehandlung
+			w.Write([]byte("Error " + strconv.Itoa(http.StatusInternalServerError)))
+			return
 		}
 
 		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 		w.WriteHeader(http.StatusOK)
 		if err := json.NewEncoder(w).Encode(user); err != nil {
-			panic(err)
+			log.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("Error " + strconv.Itoa(http.StatusInternalServerError)))
+			return
 		}
 
 	} else {
@@ -132,12 +135,16 @@ func GetPublicUserDetail(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Println(err)
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte("Error " + strconv.Itoa(http.StatusBadRequest)))
+			w.Write([]byte("Error " + strconv.Itoa(http.StatusInternalServerError)))
+			return
 		}
 		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 		w.WriteHeader(http.StatusOK)
 		if err := json.NewEncoder(w).Encode(user); err != nil {
 			log.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("Error " + strconv.Itoa(http.StatusInternalServerError)))
+			return
 		}
 	}
 
@@ -155,9 +162,6 @@ func GetAuthentication(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 	}
 	defer r.Body.Close()
-
-	//
-
 
 	// check if user is in Database and get public user data
 	dbUser, err = v1.GetPublicUserDataByUserName(user.UserName)
