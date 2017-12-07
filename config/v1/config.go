@@ -14,6 +14,12 @@ type Config struct {
 	JWTSecret   string
 	JWTValidTime int64
 	NewUserOnlyByAdmin bool
+	LDAPActive bool
+	LDAPProtocol string
+	LDAPPort int
+	LDAPHost string
+	LDAPUseSSL bool
+	LDAPBind string
 }
 
 func ReadConfig() (config Config) {

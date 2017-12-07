@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"github.com/dgrijalva/jwt-go"
 	"time"
+	"crypto/tls"
+	ldap2 "gopkg.in/ldap.v2"
 )
 
 type User struct {
@@ -190,7 +192,7 @@ func GetPublicUserDataByUserName(username string) (user User, err error) {
 	return User{UserID:userID,UserName: userName,UserActive: userTimeBlockedBool, UserIsAdmin: userIsAdminBool}, nil
 }
 
-func AddUser(user User) (userID int64, err error) {
+func AddUser(user User, authMethod string) (userID int64, err error) {
 
 	// read config
 	var conf v1.Config
@@ -246,7 +248,7 @@ func AddUser(user User) (userID int64, err error) {
 		return
 	}
 
-	res, err = stmt.Exec(user.UserID, "password", hashedPassword)
+	res, err = stmt.Exec(user.UserID, authMethod, hashedPassword)
 	if err != nil {
 		return
 	}
@@ -318,4 +320,28 @@ func GetJWT(user User) (tokenString string, err error) {
 	} else {
 		return tokenString, err
 	}
+}
+
+func GetLDAPAuthentication(user User) (err error) {
+
+	// read config
+	var conf v1.Config
+	conf = v1.ReadConfig()
+
+	// TODO Check Certificate
+	tlsConfig := &tls.Config{InsecureSkipVerify:true}
+	// Connect to LDAP
+	ldap, err := ldap2.DialTLS(conf.LDAPProtocol, conf.LDAPHost + ":" + strconv.Itoa(conf.LDAPPort), tlsConfig)
+	if err != nil {
+		return err
+	}
+	err = ldap.Bind("cn=" + user.UserName + ",ou=people,dc=binary-kitchen,dc=de",user.UserPassword)
+	if err != nil {
+		//no user found
+		return err
+	}
+
+	// user found and credentials are fine
+
+	return nil
 }
