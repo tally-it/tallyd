@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"github.com/marove2000/hack-and-pay/user/v1"
 	config "github.com/marove2000/hack-and-pay/config/v1"
+	payment "github.com/marove2000/hack-and-pay/payment/v1"
 )
 
 func Index(w http.ResponseWriter, r *http.Request) {
@@ -318,7 +319,7 @@ func ChangeBalance (w http.ResponseWriter, r *http.Request) {
 
 	// get get data
 	vars := mux.Vars(r)
-	change, err := strconv.ParseFloat(vars["change"], 64)
+	Change, err := strconv.ParseFloat(vars["change"], 64)
 	if err != nil {
 		log.Println(err)
 		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
@@ -327,17 +328,23 @@ func ChangeBalance (w http.ResponseWriter, r *http.Request) {
 	}
 
 	// only do something if change is not 0
-	if change != 0 {
-		if err := json.NewEncoder(w).Encode(change); err != nil {
+	if Change != 0 {
+		println("oiawjedfoi")
+		err = payment.PaymentTransfer(dbUser.UserID, Change, "")
+		if err != nil {
 			log.Println(err)
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte(strconv.Itoa(http.StatusInternalServerError)))
 			return
 		}
-
-	} else {
 		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 		w.WriteHeader(http.StatusOK)
+		return
+
+	} else {
+		log.Println(err)
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 }
