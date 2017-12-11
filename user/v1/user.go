@@ -216,30 +216,35 @@ func AddUser(user User, authMethod string) (userID int64, err error) {
 
 	tx, err := db.Begin()
 	if err != nil {
-		return
+		return 0, err
 	}
 	defer tx.Rollback()
+
 	// prepare statements
 	stmt, err := db.Prepare("INSERT INTO user(userName, userEmail) VALUES(?,?)")
 	if err != nil {
-		return
+		return 0, err
+
 	}
 
 	res, err := stmt.Exec(user.UserName, user.UserEmail)
 	if err != nil {
-		return
+		return 0, err
+
 	}
 
 	// assign id
 	lastId, err := res.LastInsertId()
 	if err != nil {
-		return
+		return 0, err
+
 	}
 	user.UserID = lastId
 
 	stmt, err = db.Prepare("INSERT INTO userAuth(userID, userAuthMethod, userAuthValue) VALUES(?,?,?)")
 	if err != nil {
-		return
+		return 0, err
+
 	}
 
 	var hashedPassword []byte
@@ -248,7 +253,8 @@ func AddUser(user User, authMethod string) (userID int64, err error) {
 		// Create Password-Hash
 		hashedPassword, err = bcrypt.GenerateFromPassword([]byte(user.UserPassword), bcrypt.DefaultCost)
 		if err != nil {
-			return
+			return 0, err
+
 		}
 
 	} else {
@@ -257,10 +263,13 @@ func AddUser(user User, authMethod string) (userID int64, err error) {
 
 	res, err = stmt.Exec(user.UserID, authMethod, hashedPassword)
 	if err != nil {
-		return
+		return 0, err
+
 	}
 
 	tx.Commit()
+
+	defer db.Close()
 
 	return user.UserID, nil
 }
