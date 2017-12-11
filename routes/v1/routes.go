@@ -45,4 +45,10 @@ var RoutesIndex = Routes{
 		"/v1/get/authentication",
 		v1.GetAuthentication,
 	},
+	Route{
+		"ChangeBalance",
+		"POST",
+		"/v1/post/balance/{change}",
+		v1.ChangeBalance,
+	},
 }

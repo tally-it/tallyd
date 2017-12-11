@@ -11,18 +11,20 @@ import (
 	"time"
 	"crypto/tls"
 	ldap2 "gopkg.in/ldap.v2"
+	"fmt"
 )
 
 type User struct {
-	UserID int64 `json:"userID"`
-	UserName string `json:"userName"`
-	UserEmail string `json:"userEmail"`
+	UserID       int64  `json:"userID,string"`
+	UserName     string `json:"userName"`
+	UserEmail    string `json:"userEmail"`
 	UserPassword string `json:"userPassword"`
-	UserActive bool	`json:"userActive"`
-	UserIsAdmin bool `json:"userIsAdmin"`
+	UserActive   bool   `json:"userActive"`
+	UserIsAdmin  bool   `json:"userIsAdmin"`
+	UserJWT      string `json:"userJWT"`
 }
 
-func GetPublicUserIndex() (result []User ) {
+func GetPublicUserIndex() (result []User) {
 
 	// read config
 	var conf v1.Config
@@ -41,12 +43,12 @@ func GetPublicUserIndex() (result []User ) {
 	}
 
 	var (
-		userID int64
-		userName string
-		userTimeBlocked sql.NullString
+		userID              int64
+		userName            string
+		userTimeBlocked     sql.NullString
 		userTimeBlockedBool bool
-		userIsAdmin int
-		userIsAdminBool bool
+		userIsAdmin         int
+		userIsAdminBool     bool
 	)
 
 	// write rows to struct slice
@@ -70,7 +72,7 @@ func GetPublicUserIndex() (result []User ) {
 			userIsAdminBool = false
 		}
 
-		result = append(result, User{UserID:userID,UserName: userName,UserActive: userTimeBlockedBool, UserIsAdmin: userIsAdminBool})
+		result = append(result, User{UserID: userID, UserName: userName, UserActive: userTimeBlockedBool, UserIsAdmin: userIsAdminBool})
 	}
 
 	// close DB connection
@@ -91,18 +93,18 @@ func GetPublicUserDataById(id int64) (user User, err error) {
 	}
 
 	// receive stuff
-	rows, err := db.Query("SELECT userID, userName, userTimeBlocked, userIsAdmin FROM user WHERE userID='" + strconv.FormatInt(id,10) + "'")
+	rows, err := db.Query("SELECT userID, userName, userTimeBlocked, userIsAdmin FROM user WHERE userID='" + strconv.FormatInt(id, 10) + "'")
 	if err != nil {
 		return user, err
 	}
 
 	var (
-		userID int64
-		userName string
-		userTimeBlocked sql.NullString
+		userID              int64
+		userName            string
+		userTimeBlocked     sql.NullString
 		userTimeBlockedBool bool
-		userIsAdmin int
-		userIsAdminBool bool
+		userIsAdmin         int
+		userIsAdminBool     bool
 	)
 
 	// write rows to struct slice
@@ -131,8 +133,7 @@ func GetPublicUserDataById(id int64) (user User, err error) {
 	// close DB connection
 	defer db.Close()
 
-
-	return User{UserID:userID,UserName: userName,UserActive: userTimeBlockedBool, UserIsAdmin: userIsAdminBool}, nil
+	return User{UserID: userID, UserName: userName, UserActive: userTimeBlockedBool, UserIsAdmin: userIsAdminBool}, nil
 }
 
 func GetPublicUserDataByUserName(username string) (user User, err error) {
@@ -153,12 +154,12 @@ func GetPublicUserDataByUserName(username string) (user User, err error) {
 	}
 
 	var (
-		userID int64
-		userName string
-		userTimeBlocked sql.NullString
+		userID              int64
+		userName            string
+		userTimeBlocked     sql.NullString
 		userTimeBlockedBool bool
-		userIsAdmin int
-		userIsAdminBool bool
+		userIsAdmin         int
+		userIsAdminBool     bool
 	)
 
 	// write rows to struct slice
@@ -188,8 +189,7 @@ func GetPublicUserDataByUserName(username string) (user User, err error) {
 	// close DB connection
 	defer db.Close()
 
-
-	return User{UserID:userID,UserName: userName,UserActive: userTimeBlockedBool, UserIsAdmin: userIsAdminBool}, nil
+	return User{UserID: userID, UserName: userName, UserActive: userTimeBlockedBool, UserIsAdmin: userIsAdminBool}, nil
 }
 
 func AddUser(user User, authMethod string) (userID int64, err error) {
@@ -242,10 +242,17 @@ func AddUser(user User, authMethod string) (userID int64, err error) {
 		return
 	}
 
-	// Create Password-Hash
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.UserPassword), bcrypt.DefaultCost)
-	if err != nil {
-		return
+	var hashedPassword []byte
+
+	if authMethod != "ldap" {
+		// Create Password-Hash
+		hashedPassword, err = bcrypt.GenerateFromPassword([]byte(user.UserPassword), bcrypt.DefaultCost)
+		if err != nil {
+			return
+		}
+
+	} else {
+		hashedPassword = nil
 	}
 
 	res, err = stmt.Exec(user.UserID, authMethod, hashedPassword)
@@ -258,7 +265,7 @@ func AddUser(user User, authMethod string) (userID int64, err error) {
 	return user.UserID, nil
 }
 
-func CheckPassword(user User, password []byte)(err error) {
+func CheckPassword(user User, password []byte) (err error) {
 
 	// get password-hash from database
 	// read config
@@ -268,11 +275,11 @@ func CheckPassword(user User, password []byte)(err error) {
 	// connect to DB
 	db, err := sql.Open("mysql", conf.DBUser+":"+conf.DBPassword+"@tcp("+conf.DBServer+":"+conf.DBPort+")/"+conf.DBDatabase)
 	if err != nil {
-		return  err
+		return err
 	}
 
 	// receive stuff
-	rows, err := db.Query("SELECT userAuthValue FROM userAuth WHERE userID='" + strconv.FormatInt(user.UserID, 10)  + "' AND userAuthMethod LIKE 'password'")
+	rows, err := db.Query("SELECT userAuthValue FROM userAuth WHERE userID='" + strconv.FormatInt(user.UserID, 10) + "' AND userAuthMethod LIKE 'password'")
 	if err != nil {
 		return err
 	}
@@ -290,7 +297,6 @@ func CheckPassword(user User, password []byte)(err error) {
 	}
 
 	defer db.Close()
-
 	// compare hash
 	err = bcrypt.CompareHashAndPassword([]byte(userAuthValue), password)
 	if err != nil {
@@ -300,18 +306,18 @@ func CheckPassword(user User, password []byte)(err error) {
 	}
 }
 
-func GetJWT(user User) (tokenString string, err error) {
+func JWTGet(user User) (tokenString string, err error) {
 
 	// read config
 	var conf v1.Config
 	conf = v1.ReadConfig()
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"userID": user.UserID,
-		"userName": user.UserName,
-		"userActive": user.UserActive,
+		"userID":      user.UserID,
+		"userName":    user.UserName,
+		"userActive":  user.UserActive,
 		"userIsAdmin": user.UserIsAdmin,
-		"ExpiresAt": time.Now().Add(time.Second * time.Duration(conf.JWTValidTime)),
+		"ExpiresAt":   time.Now().Add(time.Second * time.Duration(conf.JWTValidTime)),
 	})
 
 	tokenString, err = token.SignedString([]byte(conf.JWTSecret))
@@ -322,6 +328,47 @@ func GetJWT(user User) (tokenString string, err error) {
 	}
 }
 
+func JWTValidate(JWT string, UserID int64, OnlyAdmin bool) (err error) {
+
+	// read config
+	var conf v1.Config
+	conf = v1.ReadConfig()
+	token, err := jwt.Parse(JWT, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+		}
+
+		return []byte(conf.JWTSecret), nil
+	})
+	if err != nil {
+		return err
+	}
+
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		if OnlyAdmin == true {
+			if claims["userIsAdmin"].(bool) == true {
+				return nil
+			} else {
+				return fmt.Errorf("Only allowed for admin user")
+			}
+
+		} else {
+			if int64(claims["userID"].(float64)) == UserID || claims["userIsAdmin"].(bool) == true {
+				// user has right user-id or is admin
+				return nil
+			} else {
+				return fmt.Errorf("JWT data is wrong")
+			}
+		}
+	} else {
+		return err
+	}
+
+	// TODO: Check Timeout
+
+	return err
+}
+
 func GetLDAPAuthentication(user User) (err error) {
 
 	// read config
@@ -329,13 +376,13 @@ func GetLDAPAuthentication(user User) (err error) {
 	conf = v1.ReadConfig()
 
 	// TODO Check Certificate
-	tlsConfig := &tls.Config{InsecureSkipVerify:true}
+	tlsConfig := &tls.Config{InsecureSkipVerify: true}
 	// Connect to LDAP
-	ldap, err := ldap2.DialTLS(conf.LDAPProtocol, conf.LDAPHost + ":" + strconv.Itoa(conf.LDAPPort), tlsConfig)
+	ldap, err := ldap2.DialTLS(conf.LDAPProtocol, conf.LDAPHost+":"+strconv.Itoa(conf.LDAPPort), tlsConfig)
 	if err != nil {
 		return err
 	}
-	err = ldap.Bind("cn=" + user.UserName + ",ou=people,dc=binary-kitchen,dc=de",user.UserPassword)
+	err = ldap.Bind("cn="+user.UserName+",ou=people,dc=binary-kitchen,dc=de", user.UserPassword)
 	if err != nil {
 		//no user found
 		return err
