@@ -11,6 +11,7 @@ import (
 	"github.com/marove2000/hack-and-pay/user/v1"
 	config "github.com/marove2000/hack-and-pay/config/v1"
 	payment "github.com/marove2000/hack-and-pay/payment/v1"
+	"strings"
 )
 
 func Index(w http.ResponseWriter, r *http.Request) {
@@ -273,6 +274,18 @@ func GetAuthentication(w http.ResponseWriter, r *http.Request) {
 func ChangeBalance (w http.ResponseWriter, r *http.Request) {
 
 	var user, dbUser v1.User
+	var JWT string
+
+	// Read Auth-Token
+	authorizationHeader := r.Header.Get("authorization")
+	bearerToken := strings.Split(authorizationHeader, " ")
+    if len(bearerToken) == 2 {
+		JWT = bearerToken[1]
+	} else {
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
 
 	// get body data
 	decoder := json.NewDecoder(r.Body)
@@ -309,7 +322,7 @@ func ChangeBalance (w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check JWT
-	err = v1.JWTValidate(user.UserJWT, dbUser.UserID, false)
+	err = v1.JWTValidate(JWT, dbUser.UserID, false)
 	if err != nil {
 		log.Println(err)
 		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
@@ -329,7 +342,6 @@ func ChangeBalance (w http.ResponseWriter, r *http.Request) {
 
 	// only do something if change is not 0
 	if Change != 0 {
-		println("oiawjedfoi")
 		err = payment.PaymentTransfer(dbUser.UserID, Change, "")
 		if err != nil {
 			log.Println(err)
