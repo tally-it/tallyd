@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"github.com/marove2000/hack-and-pay/user/v1"
 	config "github.com/marove2000/hack-and-pay/config/v1"
-	)
+)
 
 func Index(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "Welcome!")
@@ -32,7 +32,10 @@ func PublicUserIndex(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(users); err != nil {
-		panic(err)
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(strconv.Itoa(http.StatusInternalServerError)))
+		return
 	}
 }
 
@@ -48,6 +51,10 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 		err := decoder.Decode(&user)
 		if err != nil {
 			log.Println(err)
+			log.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(strconv.Itoa(http.StatusInternalServerError)))
+			return
 		}
 		defer r.Body.Close()
 
@@ -78,13 +85,17 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Println(err)
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte("Error " + strconv.Itoa(http.StatusBadRequest)))
+			w.Write([]byte("Error " + strconv.Itoa(http.StatusInternalServerError)))
+			return
 		}
 
 		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 		w.WriteHeader(http.StatusOK)
 		if err := json.NewEncoder(w).Encode(user.UserID); err != nil {
 			log.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(strconv.Itoa(http.StatusInternalServerError)))
+			return
 		}
 	} else {
 		log.Println("LDAP active, creation of local user not allowed")
@@ -155,6 +166,8 @@ func GetAuthentication(w http.ResponseWriter, r *http.Request) {
 
 	var user, dbUser v1.User
 
+	conf := config.ReadConfig()
+
 	// get body data
 	decoder := json.NewDecoder(r.Body)
 	err := decoder.Decode(&user)
@@ -181,16 +194,23 @@ func GetAuthentication(w http.ResponseWriter, r *http.Request) {
 			return
 		} else {
 			// user is existing in ldap
+			// TODO get LDAP Email Address from LDAP-field mail
 			v1.AddUser(user, "ldap")
-			tokenString, err := v1.GetJWT(user)
+			user.UserJWT, err = v1.JWTGet(user)
 			if err != nil {
 				log.Println(err)
 				w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			} else {
-				// TODO: Give Back tokenString
-				println(tokenString)
+				w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+				w.WriteHeader(http.StatusOK)
+				if err := json.NewEncoder(w).Encode(user); err != nil {
+					log.Println(err)
+					w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
 			}
 		}
 
@@ -200,24 +220,41 @@ func GetAuthentication(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if conf.LDAPActive == false {
+		// LDAP not active, check password in database
 
-	// check password
-	err = v1.CheckPassword(dbUser, []byte(user.UserPassword))
-	if err != nil {
-		log.Println(err)
-		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	} else {
-		tokenString, err := v1.GetJWT(dbUser)
+		err = v1.CheckPassword(dbUser, []byte(user.UserPassword))
 		if err != nil {
 			log.Println(err)
 			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-			w.WriteHeader(http.StatusInternalServerError)
+			w.WriteHeader(http.StatusUnauthorized)
 			return
 		} else {
-			//TODO give back tokenString
-			println(tokenString)
+			dbUser.UserJWT, err = v1.JWTGet(dbUser)
+			if err != nil {
+				log.Println(err)
+				w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+		}
+	} else {
+		// LDAP active, check with LDAP
+		err = v1.GetLDAPAuthentication(user)
+		if err != nil {
+			// user does not exist in ldap too or credentials are wrong
+			log.Println(err)
+			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		} else {
+			dbUser.UserJWT, err = v1.JWTGet(dbUser)
+			if err != nil {
+				log.Println(err)
+				w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
 		}
 	}
 
@@ -225,6 +262,82 @@ func GetAuthentication(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(dbUser); err != nil {
 		log.Println(err)
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
+}
+
+func ChangeBalance (w http.ResponseWriter, r *http.Request) {
+
+	var user, dbUser v1.User
+
+	// get body data
+	decoder := json.NewDecoder(r.Body)
+	err := decoder.Decode(&user)
+	if err != nil {
+		log.Println(err)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(strconv.Itoa(http.StatusBadRequest)))
+		return
+	}
+	defer r.Body.Close()
+
+	if user.UserID == 0 {
+		dbUser, err = v1.GetPublicUserDataByUserName(user.UserName)
+		if err != nil {
+			log.Println(err)
+			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+	} else if user.UserName == "" {
+		dbUser, err = v1.GetPublicUserDataById(user.UserID)
+		if err != nil {
+			log.Println(err)
+			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+	} else if user.UserID == 0 && user.UserName == "" {
+		log.Println(err)
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	// Check JWT
+	err = v1.JWTValidate(user.UserJWT, dbUser.UserID, false)
+	if err != nil {
+		log.Println(err)
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	// get get data
+	vars := mux.Vars(r)
+	change, err := strconv.ParseFloat(vars["change"], 64)
+	if err != nil {
+		log.Println(err)
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	// only do something if change is not 0
+	if change != 0 {
+		if err := json.NewEncoder(w).Encode(change); err != nil {
+			log.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(strconv.Itoa(http.StatusInternalServerError)))
+			return
+		}
+
+	} else {
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		w.WriteHeader(http.StatusOK)
+		return
+	}
 }
