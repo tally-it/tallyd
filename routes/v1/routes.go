@@ -51,4 +51,16 @@ var RoutesIndex = Routes{
 		"/v1/post/balance/{change}",
 		v1.ChangeBalance,
 	},
+	Route{
+		"PutProduct",
+		"PUT",
+		"/v1/put/product",
+		v1.PutProduct,
+	},
+	Route{
+		"GetProductIndex",
+		"GET",
+		"/v1/get/product",
+		v1.GetProductIndex,
+	},
 }

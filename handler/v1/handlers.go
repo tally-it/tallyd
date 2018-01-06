@@ -12,6 +12,7 @@ import (
 	config "github.com/marove2000/hack-and-pay/config/v1"
 	payment "github.com/marove2000/hack-and-pay/payment/v1"
 	"strings"
+	product "github.com/marove2000/hack-and-pay/product/v1"
 )
 
 func Index(w http.ResponseWriter, r *http.Request) {
@@ -357,6 +358,81 @@ func ChangeBalance (w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+}
+
+func PutProduct(w http.ResponseWriter, r *http.Request) {
+
+	var Product product.Product
+	var JWT string
+
+	// Read Auth-Token
+	authorizationHeader := r.Header.Get("authorization")
+	bearerToken := strings.Split(authorizationHeader, " ")
+	if len(bearerToken) == 2 {
+		JWT = bearerToken[1]
+	} else {
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	// get body data
+	decoder := json.NewDecoder(r.Body)
+	err := decoder.Decode(&Product)
+	if err != nil {
+		log.Println(err)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(strconv.Itoa(http.StatusBadRequest)))
+		return
+	}
+	defer r.Body.Close()
+
+
+	// Check JWT
+	err = v1.JWTValidate(JWT, 0, true)
+	if err != nil {
+		log.Println(err)
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	Product.ProductID, err = product.AddProduct(Product)
+	if err != nil {
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(strconv.Itoa(http.StatusInternalServerError)))
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(Product); err != nil {
+		log.Println(err)
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+}
+
+func GetProductIndex(w http.ResponseWriter, r *http.Request) {
+		// Todo check if auth-token is sent --> if admin -> return admin data
+
+		products, err := product.GetProductIndex(false)
+		if err != nil {
+			log.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(strconv.Itoa(http.StatusInternalServerError)))
+			return
+		}
+
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(products); err != nil {
+		log.Println(err)
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 }
