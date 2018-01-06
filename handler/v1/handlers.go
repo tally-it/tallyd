@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"github.com/marove2000/hack-and-pay/user/v1"
 	config "github.com/marove2000/hack-and-pay/config/v1"
-	payment "github.com/marove2000/hack-and-pay/payment/v1"
+	transaction "github.com/marove2000/hack-and-pay/transaction/v1"
 	"strings"
 	product "github.com/marove2000/hack-and-pay/product/v1"
 )
@@ -274,7 +274,19 @@ func GetAuthentication(w http.ResponseWriter, r *http.Request) {
 
 func ChangeBalance (w http.ResponseWriter, r *http.Request) {
 
-	var user, dbUser v1.User
+	// Get userID
+	vars := mux.Vars(r)
+
+	UserID, err := strconv.ParseInt(vars["id"], 10, 64)
+	if err != nil {
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Error " + strconv.Itoa(http.StatusInternalServerError)))
+		return
+	}
+
+
+	var Transaction transaction.Transaction
 	var JWT string
 
 	// Read Auth-Token
@@ -288,9 +300,18 @@ func ChangeBalance (w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check JWT
+	err = v1.JWTValidate(JWT, UserID, false)
+	if err != nil {
+		log.Println(err)
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+
 	// get body data
 	decoder := json.NewDecoder(r.Body)
-	err := decoder.Decode(&user)
+	err = decoder.Decode(&Transaction)
 	if err != nil {
 		log.Println(err)
 		w.WriteHeader(http.StatusBadRequest)
@@ -299,51 +320,9 @@ func ChangeBalance (w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	if user.UserID == 0 {
-		dbUser, err = v1.GetPublicUserDataByUserName(user.UserName)
-		if err != nil {
-			log.Println(err)
-			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-	} else if user.UserName == "" {
-		dbUser, err = v1.GetPublicUserDataById(user.UserID)
-		if err != nil {
-			log.Println(err)
-			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-	} else if user.UserID == 0 && user.UserName == "" {
-		log.Println(err)
-		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	// Check JWT
-	err = v1.JWTValidate(JWT, dbUser.UserID, false)
-	if err != nil {
-		log.Println(err)
-		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-		w.WriteHeader(http.StatusForbidden)
-		return
-	}
-
-	// get get data
-	vars := mux.Vars(r)
-	Change, err := strconv.ParseFloat(vars["change"], 64)
-	if err != nil {
-		log.Println(err)
-		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
 	// only do something if change is not 0
-	if Change != 0 {
-		err = payment.PaymentTransfer(dbUser.UserID, Change, "")
+	if Transaction.Value != 0 {
+		err = transaction.PaymentTransfer(UserID, Transaction)
 		if err != nil {
 			log.Println(err)
 			w.WriteHeader(http.StatusInternalServerError)

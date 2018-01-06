@@ -12,19 +12,10 @@ import (
 	"crypto/tls"
 	ldap2 "gopkg.in/ldap.v2"
 	"fmt"
+	"github.com/marove2000/hack-and-pay/contract"
 )
 
-type User struct {
-	UserID       int64  `json:"userID,string"`
-	UserName     string `json:"userName"`
-	UserEmail    string `json:"userEmail"`
-	UserPassword string `json:"userPassword"`
-	UserActive   bool   `json:"userActive"`
-	UserIsAdmin  bool   `json:"userIsAdmin"`
-	UserJWT      string `json:"userJWT"`
-}
-
-func GetPublicUserIndex() (result []User) {
+func GetPublicUserIndex() (result []contract.User) {
 
 	// read config
 	var conf v1.Config
@@ -37,7 +28,7 @@ func GetPublicUserIndex() (result []User) {
 	}
 
 	// receive stuff
-	rows, err := db.Query("select userID, userName, userTimeBlocked, userIsAdmin from user WHERE userTimeDeleted IS NULL")
+	rows, err := db.Query("SELECT users.userID, users.userName, users.userTimeBlocked, users.userIsAdmin, SUM(transactions.value) AS 'userBalance' FROM user LEFT JOIN payment ON user.userID = payment.userID WHERE user.userTimeDeleted IS NULL GROUP BY user.userID")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -49,11 +40,13 @@ func GetPublicUserIndex() (result []User) {
 		userTimeBlockedBool bool
 		userIsAdmin         int
 		userIsAdminBool     bool
+		userBalance			sql.NullFloat64
+		userBalanceFloat	float64
 	)
 
 	// write rows to struct slice
 	for rows.Next() {
-		err := rows.Scan(&userID, &userName, &userTimeBlocked, &userIsAdmin)
+		err := rows.Scan(&userID, &userName, &userTimeBlocked, &userIsAdmin, &userBalance)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -72,7 +65,15 @@ func GetPublicUserIndex() (result []User) {
 			userIsAdminBool = false
 		}
 
-		result = append(result, User{UserID: userID, UserName: userName, UserActive: userTimeBlockedBool, UserIsAdmin: userIsAdminBool})
+// check if userBalance is nil
+		if userBalance.Valid == false {
+			userBalanceFloat = 0
+		} else {
+			userBalanceFloat = userBalance.Float64
+		}
+
+
+		result = append(result, User{UserID: userID, UserName: userName, UserActive: userTimeBlockedBool, UserIsAdmin: userIsAdminBool, UserBalance: userBalanceFloat})
 	}
 
 	// close DB connection
@@ -93,7 +94,7 @@ func GetPublicUserDataById(id int64) (user User, err error) {
 	}
 
 	// receive stuff
-	rows, err := db.Query("SELECT userID, userName, userTimeBlocked, userIsAdmin FROM user WHERE userID='" + strconv.FormatInt(id, 10) + "'")
+	rows, err := db.Query("SELECT user.userID, user.userName, user.userTimeBlocked, user.userIsAdmin, SUM(payment.paymentValue) AS 'userBalance' FROM user LEFT JOIN payment ON user.userID = payment.userID WHERE user.userID='" + strconv.FormatInt(id, 10) + "' GROUP BY user.userID")
 	if err != nil {
 		return user, err
 	}
@@ -105,11 +106,12 @@ func GetPublicUserDataById(id int64) (user User, err error) {
 		userTimeBlockedBool bool
 		userIsAdmin         int
 		userIsAdminBool     bool
+		userBalance			float64
 	)
 
 	// write rows to struct slice
 	for rows.Next() {
-		err := rows.Scan(&userID, &userName, &userTimeBlocked, &userIsAdmin)
+		err := rows.Scan(&userID, &userName, &userTimeBlocked, &userIsAdmin, &userBalance)
 		if err != nil {
 			return user, err
 		}
@@ -133,7 +135,7 @@ func GetPublicUserDataById(id int64) (user User, err error) {
 	// close DB connection
 	defer db.Close()
 
-	return User{UserID: userID, UserName: userName, UserActive: userTimeBlockedBool, UserIsAdmin: userIsAdminBool}, nil
+	return User{UserID: userID, UserName: userName, UserActive: userTimeBlockedBool, UserIsAdmin: userIsAdminBool, UserBalance: userBalance}, nil
 }
 
 func GetPublicUserDataByUserName(username string) (user User, err error) {

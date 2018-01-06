@@ -1,8 +1,8 @@
-package v1
+package config
 
 import (
 	"database/sql"
-	"github.com/marove2000/hack-and-pay/config/v1"
+	"github.com/marove2000/hack-and-pay/config"
 )
 
 
@@ -27,8 +27,8 @@ func AddProduct(product Product) (productID int64, err error) {
 
 
 	// read config
-	var conf v1.Config
-	conf = v1.ReadConfig()
+	var conf config.Config
+	conf = config.ReadConfig()
 
 	// connect to DB
 	db, err := sql.Open("mysql", conf.DBUser+":"+conf.DBPassword+"@tcp("+conf.DBServer+":"+conf.DBPort+")/"+conf.DBDatabase)
@@ -100,8 +100,8 @@ func GetProductIndex(public bool) (products []Product, err error) {
 	var product Product
 
 	// read config
-	var conf v1.Config
-	conf = v1.ReadConfig()
+	var conf config.Config
+	conf = config.ReadConfig()
 
 	// connect to DB
 	db, err := sql.Open("mysql", conf.DBUser+":"+conf.DBPassword+"@tcp("+conf.DBServer+":"+conf.DBPort+")/"+conf.DBDatabase)
