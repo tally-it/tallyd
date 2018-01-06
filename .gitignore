@@ -1,2 +1,5 @@
 misc
 .idea
+/.stignore
+/.stfolder/
+/vendor/
