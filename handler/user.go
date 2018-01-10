@@ -7,6 +7,8 @@ import (
 
 	"github.com/marove2000/hack-and-pay/contract"
 	"github.com/marove2000/hack-and-pay/errors"
+
+	"github.com/go-validator/validator"
 )
 
 func (h *Handler) publicUserIndex(ctx context.Context, r *http.Request, pathParams map[string]string) (interface{}, error) {
@@ -36,6 +38,11 @@ func (h *Handler) login(ctx context.Context, r *http.Request, pathParams map[str
 		return nil, errors.BadRequest(err.Error())
 	}
 	defer r.Body.Close()
+
+	if err = validator.Validate(user); err != nil {
+		logger.WithError(err).Warn("bad request")
+		return nil, errors.BadRequest(err.Error())
+	}
 
 	u, err := h.repo.GetPublicUserDataByUserName(ctx, user.Name)
 	if err != nil {

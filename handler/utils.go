@@ -14,7 +14,7 @@ import (
 
 type superFunc func(ctx context.Context, r *http.Request, pathParams map[string]string) (interface{}, error)
 
-func wrapError(fn superFunc) mux.HandlerFunc {
+func wrap(fn superFunc) mux.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request, params map[string]string) {
 		defer r.Body.Close()
 

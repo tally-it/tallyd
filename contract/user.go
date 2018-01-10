@@ -18,8 +18,8 @@ type AddUserRequestBody struct {
 }
 
 type LoginRequestBody struct {
-	Name     string `json:"name"`
-	Password string `json:"password"`
+	Name     string `json:"name" validate:"nonzero"`
+	Password string `json:"password" validate:"nonzero"`
 }
 
 type AddUserResponseBody struct {

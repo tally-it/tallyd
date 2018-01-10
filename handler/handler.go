@@ -27,13 +27,13 @@ func (h *Handler) Routes() []*router.Route {
 			"GetUserIndex",
 			"GET",
 			"/v1/user",
-			wrapError(h.publicUserIndex), //TODO Edit Landing-Page
+			wrap(h.publicUserIndex), //TODO Edit Landing-Page
 		},
 		{
 			"Login",
 			"POST",
 			"/v1/login",
-			wrapError(h.login),
+			wrap(h.login),
 		},
 		//{
 		//	"AddUser",
