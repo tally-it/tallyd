@@ -1,12 +1,13 @@
 package handler
 
 import (
+	"github.com/marove2000/hack-and-pay/log"
 	"github.com/marove2000/hack-and-pay/repository/ldap"
 	"github.com/marove2000/hack-and-pay/repository/sql"
 	"github.com/marove2000/hack-and-pay/router"
 )
 
-const pkg = "handler."
+var pkgLogger = log.New("config")
 
 type Handler struct {
 	repo *sql.Mysql

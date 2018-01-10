@@ -1,21 +1,20 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
 	"github.com/marove2000/hack-and-pay/contract"
 	"github.com/marove2000/hack-and-pay/errors"
-
-	"github.com/sirupsen/logrus"
 )
 
-func (h *Handler) publicUserIndex(r *http.Request, pathParams map[string]string) (interface{}, error) {
-	logger := logrus.WithField("func", pkg+"Handler.publicUserIndex")
+func (h *Handler) publicUserIndex(ctx context.Context, r *http.Request, pathParams map[string]string) (interface{}, error) {
+	logger := pkgLogger.ForFunc(ctx, "publicUserIndex")
 	logger.Debug("enter handler")
 
 	// get all user data
-	users, err := h.repo.GetUsersWithBalance()
+	users, err := h.repo.GetUsersWithBalance(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -23,8 +22,8 @@ func (h *Handler) publicUserIndex(r *http.Request, pathParams map[string]string)
 	return users, nil
 }
 
-func (h *Handler) login(r *http.Request, pathParams map[string]string) (interface{}, error) {
-	logger := logrus.WithField("func", pkg+"Handler.getAuthentication")
+func (h *Handler) login(ctx context.Context, r *http.Request, pathParams map[string]string) (interface{}, error) {
+	logger := pkgLogger.ForFunc(ctx, "login")
 	logger.Debug("enter handler")
 
 	user := &contract.LoginRequestBody{}
@@ -38,13 +37,13 @@ func (h *Handler) login(r *http.Request, pathParams map[string]string) (interfac
 	}
 	defer r.Body.Close()
 
-	u, err := h.repo.GetPublicUserDataByUserName(user.Name)
+	u, err := h.repo.GetPublicUserDataByUserName(ctx, user.Name)
 	if err != nil {
 		return nil, err
 	}
 
 	if h.ldap.IsActive() {
-		err = h.ldap.Login(user.Name, user.Password)
+		err = h.ldap.Login(ctx, user.Name, user.Password)
 		if err != nil {
 			return nil, err
 		}

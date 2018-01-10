@@ -1,17 +1,18 @@
 package ldap
 
 import (
+	"context"
 	"crypto/tls"
 	"strconv"
 
 	"github.com/marove2000/hack-and-pay/config"
 	"github.com/marove2000/hack-and-pay/errors"
+	"github.com/marove2000/hack-and-pay/log"
 
-	"github.com/sirupsen/logrus"
 	"gopkg.in/ldap.v2"
 )
 
-const pkg = "ldap."
+var pkgLogger = log.New("sql")
 
 type LDAP struct {
 	conn     *ldap.Conn
@@ -19,7 +20,7 @@ type LDAP struct {
 }
 
 func New(conf *config.LDAP) (*LDAP, error) {
-	logger := logrus.WithField("func", pkg+"New")
+	logger := pkgLogger.ForFunc(context.Background(), "New")
 	logger.Debug("enter LDAP")
 
 	// TODO Check Certificate
@@ -38,8 +39,8 @@ func New(conf *config.LDAP) (*LDAP, error) {
 	}, nil
 }
 
-func (l *LDAP) Login(name, pass string) error {
-	logger := logrus.WithField("func", pkg+"LDAP.Login")
+func (l *LDAP) Login(ctx context.Context, name, pass string) error {
+	logger := pkgLogger.ForFunc(ctx, "Login")
 	logger.Debug("enter LDAP")
 
 	if !l.isActive {

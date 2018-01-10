@@ -1,14 +1,14 @@
 package sql
 
 import (
+	"context"
+
 	"github.com/marove2000/hack-and-pay/contract"
 	"github.com/marove2000/hack-and-pay/errors"
-
-	"github.com/sirupsen/logrus"
 )
 
-func (m *Mysql) GetUsersWithBalance() ([]*contract.User, error) {
-	logger := logrus.WithField("func", pkg+"Mysql.GetAllUsers")
+func (m *Mysql) GetUsersWithBalance(ctx context.Context) ([]*contract.User, error) {
+	logger := pkgLogger.ForFunc(ctx, "GetUsersWithBalance")
 	logger.Debug("enter repo")
 
 	users := []*contract.User{}

@@ -1,12 +1,13 @@
 package sql
 
 import (
+	"context"
+	"database/sql"
+
 	"github.com/marove2000/hack-and-pay/contract"
 	"github.com/marove2000/hack-and-pay/errors"
 	"github.com/marove2000/hack-and-pay/repository/sql/models"
 
-	"database/sql"
-	"github.com/sirupsen/logrus"
 	"github.com/vattle/sqlboiler/queries/qm"
 )
 
@@ -35,8 +36,8 @@ import (
 //	return out, nil
 //}
 
-func (m *Mysql) GetPublicUserDataByUserName(name string) (*contract.User, error) {
-	logger := logrus.WithField("func", pkg+"Mysql.GetAllUsers")
+func (m *Mysql) GetPublicUserDataByUserName(ctx context.Context, name string) (*contract.User, error) {
+	logger := pkgLogger.ForFunc(ctx, "GetPublicUserDataByUserName")
 	logger.Debug("enter repository")
 
 	user, err := models.Users(m.db, qm.Where("name=?", name)).One()

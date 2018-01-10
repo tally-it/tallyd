@@ -1,24 +1,26 @@
 package sql
 
 import (
+	"context"
+
 	"github.com/marove2000/hack-and-pay/config"
 	"github.com/marove2000/hack-and-pay/errors"
 	"github.com/marove2000/hack-and-pay/repository/sql/migration"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
+	"github.com/marove2000/hack-and-pay/log"
 	sqlmigrate "github.com/rubenv/sql-migrate"
-	"github.com/sirupsen/logrus"
 )
 
-const pkg = "sql."
+var pkgLogger = log.New("sql")
 
 type Mysql struct {
 	db *sqlx.DB
 }
 
 func New(conf *config.Mysql) (*Mysql, error) {
-	logger := logrus.WithField("func", pkg+"New")
+	logger := pkgLogger.ForFunc(context.Background(), "New")
 
 	db, err := sqlx.Connect("mysql", buildConnectionString(conf))
 	if err != nil {

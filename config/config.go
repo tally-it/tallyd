@@ -1,13 +1,16 @@
 package config
 
 import (
+	"context"
 	"os"
 
 	"github.com/marove2000/hack-and-pay/errors"
 
 	"github.com/BurntSushi/toml"
-	"github.com/sirupsen/logrus"
+	"github.com/marove2000/hack-and-pay/log"
 )
+
+var pkgLogger = log.New("config")
 
 type Config struct {
 	DBServer           string
@@ -48,10 +51,8 @@ type Mysql struct {
 	Password string
 }
 
-const pkg = "config."
-
 func ReadFile(filepath string) (*NewConfig, error) {
-	logger := logrus.WithField("func", pkg+"ReadConfig")
+	logger := pkgLogger.ForFunc(context.Background(), "ReadFile")
 	logger.Debug("enter config")
 	conf := &Config{}
 	if _, err := toml.DecodeFile(filepath, conf); err != nil {

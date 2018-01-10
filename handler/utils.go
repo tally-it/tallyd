@@ -1,13 +1,18 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
-	mux "github.com/dimfeld/httptreemux"
-	"github.com/marove2000/hack-and-pay/errors"
 	"net/http"
+
+	"github.com/marove2000/hack-and-pay/errors"
+
+	mux "github.com/dimfeld/httptreemux"
+	"github.com/marove2000/hack-and-pay/ctxutil"
+	"github.com/pborman/uuid"
 )
 
-type superFunc func(r *http.Request, pathParams map[string]string) (interface{}, error)
+type superFunc func(ctx context.Context, r *http.Request, pathParams map[string]string) (interface{}, error)
 
 func wrapError(fn superFunc) mux.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request, params map[string]string) {
@@ -15,7 +20,20 @@ func wrapError(fn superFunc) mux.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
-		resp, err := fn(r, params)
+		ctx := context.Background()
+
+		var corrId string
+		if corrIdSlice := r.Header["correlation-id"]; len(corrIdSlice) != 0 {
+			uid := uuid.Parse(corrIdSlice[0])
+			if uid == nil {
+				corrId = uid.String()
+			}
+		}
+		if corrId == "" {
+			corrId = uuid.NewRandom().String()
+		}
+
+		resp, err := fn(ctxutil.InjectCorrelationId(ctx, corrId), r, params)
 		if err != nil {
 			w.WriteHeader(err.(*errors.Error).Status)
 			json.NewEncoder(w).Encode(err)
