@@ -27,7 +27,7 @@ func (h *Handler) Routes() []*router.Route {
 			"GetUserIndex",
 			"GET",
 			"/v1/user",
-			wrap(h.publicUserIndex), //TODO Edit Landing-Page
+			wrap(h.publicUserIndex),
 		},
 		{
 			"Login",
@@ -35,12 +35,12 @@ func (h *Handler) Routes() []*router.Route {
 			"/v1/login",
 			wrap(h.login),
 		},
-		//{
-		//	"AddUser",
-		//	"POST",
-		//	"/v1/user",
-		//	h.addUser,
-		//},
+		{
+			"AddUser",
+			"POST",
+			"/v1/user",
+			wrap(h.signUp),
+		},
 	}
 }
 

@@ -24,7 +24,51 @@ func (h *Handler) publicUserIndex(ctx context.Context, r *http.Request, pathPara
 	return users, nil
 }
 
+func (h *Handler) signUp(ctx context.Context, r *http.Request, pathParams map[string]string) (interface{}, error) {
+	logger := pkgLogger.ForFunc(ctx, "signUp")
+	logger.Debug("enter handler")
+
+	user := &contract.AddUserRequestBody{}
+
+	// get body data
+	decoder := json.NewDecoder(r.Body)
+	err := decoder.Decode(user)
+	if err != nil {
+		logger.WithError(err).Error("failed to parse body")
+		return nil, errors.BadRequest(err.Error())
+	}
+	defer r.Body.Close()
+
+	// validate data
+	if err = validator.Validate(user); err != nil {
+		logger.WithError(err).Warn("bad request")
+		return nil, errors.BadRequest(err.Error())
+	}
+
+	// check if ldap is active
+	var id int
+	switch {
+	case h.ldap.IsActive():
+		// login with ldap
+		err = h.ldap.Login(ctx, user.Name, user.Password)
+		if err != nil {
+			return nil, err
+		}
+
+		// login correct, create user in DB
+		id, err = h.repo.AddLDAPUser(ctx, user)
+		if err != nil {
+			return nil, err
+		}
+
+	default:
+		// TODO local sign up
+	}
+	return &contract.AddUserResponseBody{UserID: id}, err
+}
+
 func (h *Handler) login(ctx context.Context, r *http.Request, pathParams map[string]string) (interface{}, error) {
+	//TODO Finish function
 	logger := pkgLogger.ForFunc(ctx, "login")
 	logger.Debug("enter handler")
 

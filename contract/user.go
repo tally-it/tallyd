@@ -23,6 +23,5 @@ type LoginRequestBody struct {
 }
 
 type AddUserResponseBody struct {
-	*User
-	JWT string `json:"JWT"`
+	UserID int `json:"userID"`
 }
