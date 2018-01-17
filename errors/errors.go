@@ -5,6 +5,7 @@ import (
 	"net/http"
 )
 
+// swagger:model error
 type Error struct {
 	Status  int    `json:"status"`
 	Message string `json:"message"`
