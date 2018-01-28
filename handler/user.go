@@ -62,7 +62,11 @@ func (h *Handler) signUp(ctx context.Context, r *http.Request, pathParams map[st
 		}
 
 	default:
-		// TODO local sign up
+		// ldap not active create user account
+		id, err = h.repo.AddLocalUser(ctx, user)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return &contract.AddUserResponseBody{UserID: id}, err
 }
