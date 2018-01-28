@@ -68,19 +68,22 @@ CREATE TABLE IF NOT EXISTS stock (
   ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4;
 
-CREATE TABLE IF NOT EXISTS users (
-  user_id    INT(11)      NOT NULL  AUTO_INCREMENT,
-  name       VARCHAR(191) NOT NULL,
-  email      VARCHAR(191)           DEFAULT NULL,
-  created_at DATETIME     NOT NULL  DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME               DEFAULT NULL,
-  deleted_at DATETIME               DEFAULT NULL,
-  blocked_at TIMESTAMP    NULL      DEFAULT NULL,
-  is_admin   TINYINT(1)   NOT NULL  DEFAULT '0',
-  PRIMARY KEY (user_id)
+CREATE TABLE users
+(
+  user_id    INT AUTO_INCREMENT
+    PRIMARY KEY,
+  name       VARCHAR(191)                       NOT NULL,
+  email      VARCHAR(191)                       NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
+  updated_at DATETIME                           NULL,
+  deleted_at DATETIME                           NULL,
+  blocked_at TIMESTAMP                          NULL,
+  is_admin   TINYINT(1) DEFAULT '0'             NOT NULL,
+  CONSTRAINT users_name_uindex
+  UNIQUE (name)
 )
   ENGINE = InnoDB
-  DEFAULT CHARSET = utf8mb4;
+  CHARSET = utf8mb4;
 
 
 CREATE TABLE IF NOT EXISTS user_auths (
