@@ -5,8 +5,8 @@ import (
 )
 
 type Product struct {
-	ProductID    int64         `json:"productID" db:"product_id"`
-	SKU          int64         `json:"SKU" db:"SKU"`
+	ProductID    int           `json:"productID" db:"product_id"`
+	SKU          int           `json:"SKU" db:"SKU"`
 	Name         string        `json:"Name" db:"name"`
 	GTIN         int64         `json:"GTIN" db:"GTIN"`
 	Price        float64       `json:"price" db:"price"`

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"time"
+	"strconv"
 
 	"github.com/marove2000/hack-and-pay/contract"
 	"github.com/marove2000/hack-and-pay/errors"
@@ -12,7 +13,6 @@ import (
 
 	"github.com/go-validator/validator"
 	"github.com/dgrijalva/jwt-go"
-	"strconv"
 )
 
 func (h *Handler) publicUserIndex(ctx context.Context, r *http.Request, pathParams map[string]string) (interface{}, error) {

@@ -24,11 +24,11 @@ import (
 // Product is an object representing the database table.
 type Product struct {
 	ProductID    int         `boil:"product_id" json:"product_id" toml:"product_id" yaml:"product_id"`
+	SKU          int         `boil:"SKU" json:"SKU" toml:"SKU" yaml:"SKU"`
 	Name         string      `boil:"name" json:"name" toml:"name" yaml:"name"`
 	GTIN         null.String `boil:"GTIN" json:"GTIN,omitempty" toml:"GTIN" yaml:"GTIN,omitempty"`
 	Price        string      `boil:"price" json:"price" toml:"price" yaml:"price"`
 	AddedAt      time.Time   `boil:"added_at" json:"added_at" toml:"added_at" yaml:"added_at"`
-	UpdatedAt    null.Time   `boil:"updated_at" json:"updated_at,omitempty" toml:"updated_at" yaml:"updated_at,omitempty"`
 	DeletedAt    null.Time   `boil:"deleted_at" json:"deleted_at,omitempty" toml:"deleted_at" yaml:"deleted_at,omitempty"`
 	IsVisible    int8        `boil:"is_visible" json:"is_visible" toml:"is_visible" yaml:"is_visible"`
 	Quantity     null.String `boil:"quantity" json:"quantity,omitempty" toml:"quantity" yaml:"quantity,omitempty"`
@@ -40,22 +40,22 @@ type Product struct {
 
 var ProductColumns = struct {
 	ProductID    string
+	SKU          string
 	Name         string
 	GTIN         string
 	Price        string
 	AddedAt      string
-	UpdatedAt    string
 	DeletedAt    string
 	IsVisible    string
 	Quantity     string
 	QuantityUnit string
 }{
 	ProductID:    "product_id",
+	SKU:          "SKU",
 	Name:         "name",
 	GTIN:         "GTIN",
 	Price:        "price",
 	AddedAt:      "added_at",
-	UpdatedAt:    "updated_at",
 	DeletedAt:    "deleted_at",
 	IsVisible:    "is_visible",
 	Quantity:     "quantity",
@@ -73,8 +73,8 @@ type productR struct {
 type productL struct{}
 
 var (
-	productColumns               = []string{"product_id", "name", "GTIN", "price", "added_at", "updated_at", "deleted_at", "is_visible", "quantity", "quantity_unit"}
-	productColumnsWithoutDefault = []string{"name", "GTIN", "price", "updated_at", "deleted_at", "quantity", "quantity_unit"}
+	productColumns               = []string{"product_id", "SKU", "name", "GTIN", "price", "added_at", "deleted_at", "is_visible", "quantity", "quantity_unit"}
+	productColumnsWithoutDefault = []string{"SKU", "name", "GTIN", "price", "deleted_at", "quantity", "quantity_unit"}
 	productColumnsWithDefault    = []string{"product_id", "added_at", "is_visible"}
 	productPrimaryKeyColumns     = []string{"product_id"}
 )
@@ -1133,12 +1133,6 @@ func (o *Product) Insert(exec boil.Executor, whitelist ...string) error {
 	}
 
 	var err error
-	currTime := time.Now().In(boil.GetLocation())
-
-	if o.UpdatedAt.Time.IsZero() {
-		o.UpdatedAt.Time = currTime
-		o.UpdatedAt.Valid = true
-	}
 
 	nzDefaults := queries.NonZeroDefaultSet(productColumnsWithDefault, o)
 
@@ -1268,11 +1262,6 @@ func (o *Product) UpdateP(exec boil.Executor, whitelist ...string) {
 // Update does not automatically update the record in case of default values. Use .Reload()
 // to refresh the records.
 func (o *Product) Update(exec boil.Executor, whitelist ...string) error {
-	currTime := time.Now().In(boil.GetLocation())
-
-	o.UpdatedAt.Time = currTime
-	o.UpdatedAt.Valid = true
-
 	var err error
 	key := makeCacheKey(whitelist, nil)
 	productUpdateCacheMut.RLock()
@@ -1431,10 +1420,6 @@ func (o *Product) Upsert(exec boil.Executor, updateColumns []string, whitelist .
 	if o == nil {
 		return errors.New("models: no products provided for upsert")
 	}
-	currTime := time.Now().In(boil.GetLocation())
-
-	o.UpdatedAt.Time = currTime
-	o.UpdatedAt.Valid = true
 
 	nzDefaults := queries.NonZeroDefaultSet(productColumnsWithDefault, o)
 

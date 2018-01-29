@@ -3,6 +3,9 @@ package handler
 import (
 	"context"
 	"net/http"
+	"strconv"
+
+	"github.com/marove2000/hack-and-pay/errors"
 )
 
 func (h *Handler) productIndex(ctx context.Context, r *http.Request, pathParams map[string]string) (interface{}, error) {
@@ -16,4 +19,31 @@ func (h *Handler) productIndex(ctx context.Context, r *http.Request, pathParams 
 	}
 
 	return products, nil
+}
+
+func (h *Handler) productDetail(ctx context.Context, r *http.Request, pathParams map[string]string) (interface{}, error) {
+	logger := pkgLogger.ForFunc(ctx, "productDetail")
+	logger.Debug("enter handler")
+
+	// read id
+	sku := pathParams["sku"]
+	SKU, err := strconv.Atoi(sku)
+	if err != nil {
+		logger.WithError(err).Error("failed to parse product sku")
+		return nil, errors.BadRequest(err.Error())
+	}
+
+	// get all product data
+	product, err := h.repo.GetProductBySKU(ctx, SKU)
+	if err != nil {
+		logger.WithError(err).Error("failed to get product data")
+		return nil, errors.BadRequest(err.Error())
+	}
+
+	if product == nil {
+		logger.Warn("no product found")
+		return nil, errors.NotFound("no product found")
+	}
+
+	return product[0], nil
 }
