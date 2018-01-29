@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-validator/validator"
 	"github.com/dgrijalva/jwt-go"
+	"strconv"
 )
 
 func (h *Handler) publicUserIndex(ctx context.Context, r *http.Request, pathParams map[string]string) (interface{}, error) {
@@ -25,6 +26,28 @@ func (h *Handler) publicUserIndex(ctx context.Context, r *http.Request, pathPara
 	}
 
 	return users, nil
+}
+
+func (h *Handler) getUserDetail(ctx context.Context, r *http.Request, pathParams map[string]string) (interface{}, error) {
+	logger := pkgLogger.ForFunc(ctx, "getUserDetail")
+	logger.Debug("enter handler")
+
+	// read id
+	userID := pathParams["id"]
+	id, err := strconv.Atoi(userID)
+	if err != nil {
+		logger.WithError(err).Error("failed to parse id")
+		return nil, errors.BadRequest(err.Error())
+	}
+
+	// get all user data
+	user, err := h.repo.GetPublicUserDataByUserID(ctx, id)
+	if err != nil {
+		logger.WithError(err).Error("failed to get user data")
+		return nil, errors.BadRequest(err.Error())
+	}
+
+	return user, nil
 }
 
 func (h *Handler) signUp(ctx context.Context, r *http.Request, pathParams map[string]string) (interface{}, error) {

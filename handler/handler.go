@@ -134,6 +134,12 @@ func (h *Handler) Routes() []*router.Route {
 			"/v1/user",
 			wrap(h.signUp),
 		},
+		{
+			"GetUserDetail",
+			"GET",
+			"/v1/user/:id",
+			wrap(h.getUserDetail),
+		},
 	}
 }
 
