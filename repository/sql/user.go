@@ -32,7 +32,7 @@ func (m *Mysql) AddLocalUser(ctx context.Context, body *contract.AddUserRequestB
 	}
 
 	// add user
-	err = usr.Insert(m.db, models.UserColumns.Name, models.UserColumns.Email)
+	err = usr.Insert(tx, models.UserColumns.Name, models.UserColumns.Email)
 	if err != nil {
 		logger.WithError(err).Error("failed to insert user")
 		return 0, errors.InternalServerError("db error", err)
@@ -51,7 +51,7 @@ func (m *Mysql) AddLocalUser(ctx context.Context, body *contract.AddUserRequestB
 		Value:  null.Bytes{Bytes: hashedPassword, Valid: true},
 	}
 
-	err = auth.Insert(m.db, models.UserAuthColumns.UserID, models.UserAuthColumns.Method, models.UserAuthColumns.Value)
+	err = auth.Insert(tx, models.UserAuthColumns.UserID, models.UserAuthColumns.Method, models.UserAuthColumns.Value)
 	if err != nil {
 		logger.WithError(err).Error("failed to insert user auth")
 		return 0, errors.InternalServerError("db error", err)
@@ -86,7 +86,7 @@ func (m *Mysql) AddLDAPUser(ctx context.Context, body *contract.AddUserRequestBo
 	}
 
 	// add user
-	err = usr.Insert(m.db, models.UserColumns.Name, models.UserColumns.Email)
+	err = usr.Insert(tx, models.UserColumns.Name, models.UserColumns.Email)
 	if err != nil {
 		logger.WithError(err).Error("failed to insert user")
 		return 0, errors.InternalServerError("db error", err)
@@ -97,7 +97,7 @@ func (m *Mysql) AddLDAPUser(ctx context.Context, body *contract.AddUserRequestBo
 		UserID: usr.UserID,
 	}
 
-	err = auth.Insert(m.db, models.UserAuthColumns.UserID, models.UserAuthColumns.Method)
+	err = auth.Insert(tx, models.UserAuthColumns.UserID, models.UserAuthColumns.Method)
 	if err != nil {
 		logger.WithError(err).Error("failed to insert user auth")
 		return 0, errors.InternalServerError("db error", err)
