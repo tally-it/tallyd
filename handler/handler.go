@@ -140,6 +140,12 @@ func (h *Handler) Routes() []*router.Route {
 			"/v1/user/:id",
 			wrap(h.getUserDetail),
 		},
+		{
+			"GetProductIndex",
+			"GET",
+			"/v1/product",
+			wrap(h.productIndex),
+		},
 	}
 }
 

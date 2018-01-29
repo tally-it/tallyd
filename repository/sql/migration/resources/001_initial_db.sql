@@ -35,11 +35,11 @@ CREATE TABLE IF NOT EXISTS transactions (
 
 CREATE TABLE IF NOT EXISTS products (
   product_id    INT(11)        NOT NULL              AUTO_INCREMENT,
+  SKU           INT(11)        NOT NULL,
   name          VARCHAR(255)   NOT NULL,
   GTIN          CHAR(14)                             DEFAULT NULL,
   price         DECIMAL(15, 2) NOT NULL,
   added_at      DATETIME       NOT NULL              DEFAULT CURRENT_TIMESTAMP,
-  updated_at    DATETIME                             DEFAULT NULL,
   deleted_at    DATETIME                             DEFAULT NULL,
   is_visible    TINYINT(1)     NOT NULL              DEFAULT '1',
   quantity      DECIMAL(15, 2)                       DEFAULT NULL,

@@ -48,7 +48,7 @@ func (m *Mysql) AddLocalUser(ctx context.Context, body *contract.AddUserRequestB
 	auth := models.UserAuth{
 		Method: string(contract.AuthTypePasswd),
 		UserID: usr.UserID,
-		Value: null.Bytes{Bytes: hashedPassword, Valid: true},
+		Value:  null.Bytes{Bytes: hashedPassword, Valid: true},
 	}
 
 	err = auth.Insert(m.db, models.UserAuthColumns.UserID, models.UserAuthColumns.Method, models.UserAuthColumns.Value)
