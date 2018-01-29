@@ -159,3 +159,36 @@ func (m *Mysql) GetPublicUserDataByUserName(ctx context.Context, name string) (*
 		Email:  user.Email.String,
 	}, nil
 }
+
+func (m *Mysql) Login(ctx context.Context, name, pass string) error {
+	logger := pkgLogger.ForFunc(ctx, "Login")
+	logger.Debug("enter Login")
+
+	// get user id by name
+	user, err := models.Users(m.db, qm.Where("name=?", name)).One()
+	if err != nil {
+		if err == sql.ErrNoRows {
+			logger.Warn("failed to find user")
+			return errors.NotFound("user not found")
+		}
+
+		logger.WithError(err).Error("failed to fetch users from db")
+		return errors.InternalServerError("db error", err)
+	}
+
+	// get user_auth data by id
+	auth, err := models.UserAuths(m.db, qm.Where("user_id=?", user.UserID)).One()
+	if err != nil {
+		logger.WithError(err).Error("failed to fetch users auth from db")
+		return errors.InternalServerError("db error", err)
+	}
+
+	// check auth value
+	err = bcrypt.CompareHashAndPassword([]byte(auth.Value.Bytes), []byte(pass))
+	if err != nil {
+		logger.WithError(err).Error("wrong password")
+		return errors.Unauthorized()
+	}
+
+	return nil
+}
