@@ -141,7 +141,7 @@ func (h *Handler) login(ctx context.Context, r *http.Request, pathParams map[str
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"userID":    u.UserID,
 		"Name":      u.Name,
-		"IsActive":  u.IsActive,
+		"IsBlocked":  u.IsBlocked,
 		"IsAdmin":   u.IsAdmin,
 		"ExpiresAt": time.Now().Add(time.Second * time.Duration(conf.JWTValidTime)),
 	})

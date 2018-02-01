@@ -37,13 +37,8 @@ func (h *Handler) productDetail(ctx context.Context, r *http.Request, pathParams
 	product, err := h.repo.GetProductBySKU(ctx, SKU)
 	if err != nil {
 		logger.WithError(err).Error("failed to get product data")
-		return nil, errors.BadRequest(err.Error())
+		return nil, err
 	}
 
-	if product == nil {
-		logger.Warn("no product found")
-		return nil, errors.NotFound("no product found")
-	}
-
-	return product[0], nil
+	return product, nil
 }

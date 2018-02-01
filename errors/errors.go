@@ -14,6 +14,10 @@ type Error struct {
 }
 
 func (e *Error) Error() string {
+	if e.Cause == nil {
+		return fmt.Sprintf("[%d] %s", e.Status, e.Details)
+	}
+
 	return fmt.Sprintf("[%d] %s: %s", e.Status, e.Details, e.Cause)
 }
 
