@@ -24,13 +24,13 @@ import (
 // Product is an object representing the database table.
 type Product struct {
 	ProductID    int         `boil:"product_id" json:"product_id" toml:"product_id" yaml:"product_id"`
-	SKU          int         `boil:"SKU" json:"SKU" toml:"SKU" yaml:"SKU"`
+	SKUID        int         `boil:"SKU_id" json:"SKU_id" toml:"SKU_id" yaml:"SKU_id"`
 	Name         string      `boil:"name" json:"name" toml:"name" yaml:"name"`
 	GTIN         null.String `boil:"GTIN" json:"GTIN,omitempty" toml:"GTIN" yaml:"GTIN,omitempty"`
 	Price        string      `boil:"price" json:"price" toml:"price" yaml:"price"`
 	AddedAt      time.Time   `boil:"added_at" json:"added_at" toml:"added_at" yaml:"added_at"`
 	DeletedAt    null.Time   `boil:"deleted_at" json:"deleted_at,omitempty" toml:"deleted_at" yaml:"deleted_at,omitempty"`
-	IsVisible    int8        `boil:"is_visible" json:"is_visible" toml:"is_visible" yaml:"is_visible"`
+	IsVisible    string      `boil:"is_visible" json:"is_visible" toml:"is_visible" yaml:"is_visible"`
 	Quantity     null.String `boil:"quantity" json:"quantity,omitempty" toml:"quantity" yaml:"quantity,omitempty"`
 	QuantityUnit null.String `boil:"quantity_unit" json:"quantity_unit,omitempty" toml:"quantity_unit" yaml:"quantity_unit,omitempty"`
 
@@ -40,7 +40,7 @@ type Product struct {
 
 var ProductColumns = struct {
 	ProductID    string
-	SKU          string
+	SKUID        string
 	Name         string
 	GTIN         string
 	Price        string
@@ -51,7 +51,7 @@ var ProductColumns = struct {
 	QuantityUnit string
 }{
 	ProductID:    "product_id",
-	SKU:          "SKU",
+	SKUID:        "SKU_id",
 	Name:         "name",
 	GTIN:         "GTIN",
 	Price:        "price",
@@ -65,7 +65,7 @@ var ProductColumns = struct {
 // productR is where relationships are stored.
 type productR struct {
 	Categories   CategorySlice
-	Stocks       StockSlice
+	SKUStocks    StockSlice
 	Transactions TransactionSlice
 }
 
@@ -73,8 +73,8 @@ type productR struct {
 type productL struct{}
 
 var (
-	productColumns               = []string{"product_id", "SKU", "name", "GTIN", "price", "added_at", "deleted_at", "is_visible", "quantity", "quantity_unit"}
-	productColumnsWithoutDefault = []string{"SKU", "name", "GTIN", "price", "deleted_at", "quantity", "quantity_unit"}
+	productColumns               = []string{"product_id", "SKU_id", "name", "GTIN", "price", "added_at", "deleted_at", "is_visible", "quantity", "quantity_unit"}
+	productColumnsWithoutDefault = []string{"SKU_id", "name", "GTIN", "price", "deleted_at", "quantity", "quantity_unit"}
 	productColumnsWithDefault    = []string{"product_id", "added_at", "is_visible"}
 	productPrimaryKeyColumns     = []string{"product_id"}
 )
@@ -235,20 +235,20 @@ func (o *Product) Categories(exec boil.Executor, mods ...qm.QueryMod) categoryQu
 	return query
 }
 
-// StocksG retrieves all the stock's stock.
-func (o *Product) StocksG(mods ...qm.QueryMod) stockQuery {
-	return o.Stocks(boil.GetDB(), mods...)
+// SKUStocksG retrieves all the stock's stock via SKU_id column.
+func (o *Product) SKUStocksG(mods ...qm.QueryMod) stockQuery {
+	return o.SKUStocks(boil.GetDB(), mods...)
 }
 
-// Stocks retrieves all the stock's stock with an executor.
-func (o *Product) Stocks(exec boil.Executor, mods ...qm.QueryMod) stockQuery {
+// SKUStocks retrieves all the stock's stock with an executor via SKU_id column.
+func (o *Product) SKUStocks(exec boil.Executor, mods ...qm.QueryMod) stockQuery {
 	var queryMods []qm.QueryMod
 	if len(mods) != 0 {
 		queryMods = append(queryMods, mods...)
 	}
 
 	queryMods = append(queryMods,
-		qm.Where("`stock`.`product_id`=?", o.ProductID),
+		qm.Where("`stock`.`SKU_id`=?", o.SKUID),
 	)
 
 	query := Stocks(exec, queryMods...)
@@ -368,9 +368,9 @@ func (productL) LoadCategories(e boil.Executor, singular bool, maybeProduct inte
 	return nil
 }
 
-// LoadStocks allows an eager lookup of values, cached into the
+// LoadSKUStocks allows an eager lookup of values, cached into the
 // loaded structs of the objects.
-func (productL) LoadStocks(e boil.Executor, singular bool, maybeProduct interface{}) error {
+func (productL) LoadSKUStocks(e boil.Executor, singular bool, maybeProduct interface{}) error {
 	var slice []*Product
 	var object *Product
 
@@ -387,18 +387,18 @@ func (productL) LoadStocks(e boil.Executor, singular bool, maybeProduct interfac
 		if object.R == nil {
 			object.R = &productR{}
 		}
-		args[0] = object.ProductID
+		args[0] = object.SKUID
 	} else {
 		for i, obj := range slice {
 			if obj.R == nil {
 				obj.R = &productR{}
 			}
-			args[i] = obj.ProductID
+			args[i] = obj.SKUID
 		}
 	}
 
 	query := fmt.Sprintf(
-		"select * from `stock` where `product_id` in (%s)",
+		"select * from `stock` where `SKU_id` in (%s)",
 		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
 	)
 	if boil.DebugMode {
@@ -417,14 +417,14 @@ func (productL) LoadStocks(e boil.Executor, singular bool, maybeProduct interfac
 	}
 
 	if singular {
-		object.R.Stocks = resultSlice
+		object.R.SKUStocks = resultSlice
 		return nil
 	}
 
 	for _, foreign := range resultSlice {
 		for _, local := range slice {
-			if local.ProductID == foreign.ProductID {
-				local.R.Stocks = append(local.R.Stocks, foreign)
+			if local.SKUID == foreign.SKUID {
+				local.R.SKUStocks = append(local.R.SKUStocks, foreign)
 				break
 			}
 		}
@@ -734,56 +734,56 @@ func removeCategoriesFromProductsSlice(o *Product, related []*Category) {
 	}
 }
 
-// AddStocksG adds the given related objects to the existing relationships
+// AddSKUStocksG adds the given related objects to the existing relationships
 // of the product, optionally inserting them as new records.
-// Appends related to o.R.Stocks.
-// Sets related.R.Product appropriately.
+// Appends related to o.R.SKUStocks.
+// Sets related.R.SKU appropriately.
 // Uses the global database handle.
-func (o *Product) AddStocksG(insert bool, related ...*Stock) error {
-	return o.AddStocks(boil.GetDB(), insert, related...)
+func (o *Product) AddSKUStocksG(insert bool, related ...*Stock) error {
+	return o.AddSKUStocks(boil.GetDB(), insert, related...)
 }
 
-// AddStocksP adds the given related objects to the existing relationships
+// AddSKUStocksP adds the given related objects to the existing relationships
 // of the product, optionally inserting them as new records.
-// Appends related to o.R.Stocks.
-// Sets related.R.Product appropriately.
+// Appends related to o.R.SKUStocks.
+// Sets related.R.SKU appropriately.
 // Panics on error.
-func (o *Product) AddStocksP(exec boil.Executor, insert bool, related ...*Stock) {
-	if err := o.AddStocks(exec, insert, related...); err != nil {
+func (o *Product) AddSKUStocksP(exec boil.Executor, insert bool, related ...*Stock) {
+	if err := o.AddSKUStocks(exec, insert, related...); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// AddStocksGP adds the given related objects to the existing relationships
+// AddSKUStocksGP adds the given related objects to the existing relationships
 // of the product, optionally inserting them as new records.
-// Appends related to o.R.Stocks.
-// Sets related.R.Product appropriately.
+// Appends related to o.R.SKUStocks.
+// Sets related.R.SKU appropriately.
 // Uses the global database handle and panics on error.
-func (o *Product) AddStocksGP(insert bool, related ...*Stock) {
-	if err := o.AddStocks(boil.GetDB(), insert, related...); err != nil {
+func (o *Product) AddSKUStocksGP(insert bool, related ...*Stock) {
+	if err := o.AddSKUStocks(boil.GetDB(), insert, related...); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// AddStocks adds the given related objects to the existing relationships
+// AddSKUStocks adds the given related objects to the existing relationships
 // of the product, optionally inserting them as new records.
-// Appends related to o.R.Stocks.
-// Sets related.R.Product appropriately.
-func (o *Product) AddStocks(exec boil.Executor, insert bool, related ...*Stock) error {
+// Appends related to o.R.SKUStocks.
+// Sets related.R.SKU appropriately.
+func (o *Product) AddSKUStocks(exec boil.Executor, insert bool, related ...*Stock) error {
 	var err error
 	for _, rel := range related {
 		if insert {
-			rel.ProductID = o.ProductID
+			rel.SKUID = o.SKUID
 			if err = rel.Insert(exec); err != nil {
 				return errors.Wrap(err, "failed to insert into foreign table")
 			}
 		} else {
 			updateQuery := fmt.Sprintf(
 				"UPDATE `stock` SET %s WHERE %s",
-				strmangle.SetParamNames("`", "`", 0, []string{"product_id"}),
+				strmangle.SetParamNames("`", "`", 0, []string{"SKU_id"}),
 				strmangle.WhereClause("`", "`", 0, stockPrimaryKeyColumns),
 			)
-			values := []interface{}{o.ProductID, rel.StockID}
+			values := []interface{}{o.SKUID, rel.StockID}
 
 			if boil.DebugMode {
 				fmt.Fprintln(boil.DebugWriter, updateQuery)
@@ -794,25 +794,25 @@ func (o *Product) AddStocks(exec boil.Executor, insert bool, related ...*Stock) 
 				return errors.Wrap(err, "failed to update foreign table")
 			}
 
-			rel.ProductID = o.ProductID
+			rel.SKUID = o.SKUID
 		}
 	}
 
 	if o.R == nil {
 		o.R = &productR{
-			Stocks: related,
+			SKUStocks: related,
 		}
 	} else {
-		o.R.Stocks = append(o.R.Stocks, related...)
+		o.R.SKUStocks = append(o.R.SKUStocks, related...)
 	}
 
 	for _, rel := range related {
 		if rel.R == nil {
 			rel.R = &stockR{
-				Product: o,
+				SKU: o,
 			}
 		} else {
-			rel.R.Product = o
+			rel.R.SKU = o
 		}
 	}
 	return nil

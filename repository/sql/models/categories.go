@@ -267,7 +267,7 @@ func (categoryL) LoadProducts(e boil.Executor, singular bool, maybeCategory inte
 		one := new(Product)
 		var localJoinCol int
 
-		err = results.Scan(&one.ProductID, &one.SKU, &one.Name, &one.GTIN, &one.Price, &one.AddedAt, &one.DeletedAt, &one.IsVisible, &one.Quantity, &one.QuantityUnit, &localJoinCol)
+		err = results.Scan(&one.ProductID, &one.SKUID, &one.Name, &one.GTIN, &one.Price, &one.AddedAt, &one.DeletedAt, &one.IsVisible, &one.Quantity, &one.QuantityUnit, &localJoinCol)
 		if err = results.Err(); err != nil {
 			return errors.Wrap(err, "failed to plebian-bind eager loaded slice products")
 		}

@@ -28,9 +28,8 @@ type User struct {
 	Email     null.String `boil:"email" json:"email,omitempty" toml:"email" yaml:"email,omitempty"`
 	CreatedAt time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
 	UpdatedAt null.Time   `boil:"updated_at" json:"updated_at,omitempty" toml:"updated_at" yaml:"updated_at,omitempty"`
-	DeletedAt null.Time   `boil:"deleted_at" json:"deleted_at,omitempty" toml:"deleted_at" yaml:"deleted_at,omitempty"`
-	BlockedAt null.Time   `boil:"blocked_at" json:"blocked_at,omitempty" toml:"blocked_at" yaml:"blocked_at,omitempty"`
-	IsAdmin   int8        `boil:"is_admin" json:"is_admin" toml:"is_admin" yaml:"is_admin"`
+	IsBlocked string      `boil:"is_blocked" json:"is_blocked" toml:"is_blocked" yaml:"is_blocked"`
+	IsAdmin   string      `boil:"is_admin" json:"is_admin" toml:"is_admin" yaml:"is_admin"`
 
 	R *userR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L userL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -42,8 +41,7 @@ var UserColumns = struct {
 	Email     string
 	CreatedAt string
 	UpdatedAt string
-	DeletedAt string
-	BlockedAt string
+	IsBlocked string
 	IsAdmin   string
 }{
 	UserID:    "user_id",
@@ -51,8 +49,7 @@ var UserColumns = struct {
 	Email:     "email",
 	CreatedAt: "created_at",
 	UpdatedAt: "updated_at",
-	DeletedAt: "deleted_at",
-	BlockedAt: "blocked_at",
+	IsBlocked: "is_blocked",
 	IsAdmin:   "is_admin",
 }
 
@@ -67,9 +64,9 @@ type userR struct {
 type userL struct{}
 
 var (
-	userColumns               = []string{"user_id", "name", "email", "created_at", "updated_at", "deleted_at", "blocked_at", "is_admin"}
-	userColumnsWithoutDefault = []string{"name", "email", "updated_at", "deleted_at", "blocked_at"}
-	userColumnsWithDefault    = []string{"user_id", "created_at", "is_admin"}
+	userColumns               = []string{"user_id", "name", "email", "created_at", "updated_at", "is_blocked", "is_admin"}
+	userColumnsWithoutDefault = []string{"name", "email", "updated_at"}
+	userColumnsWithDefault    = []string{"user_id", "created_at", "is_blocked", "is_admin"}
 	userPrimaryKeyColumns     = []string{"user_id"}
 )
 
