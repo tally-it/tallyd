@@ -177,3 +177,6 @@ Gibt Produktdetails anhand der SKU zurück
     "quantityUnit": "g",
     "stock": 0
     }```
+
+## Licence
+This project is licenced under MIT licence. See LICENCE file.
