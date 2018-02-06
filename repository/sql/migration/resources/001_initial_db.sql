@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS category_parent_map (
 CREATE TABLE IF NOT EXISTS transactions (
   payment_id INT(11)        NOT NULL              AUTO_INCREMENT,
   user_id    INT(11)        NOT NULL,
-  product_id INT(11)        NULL,
+  SKU_id     INT(11)        NULL,
   value      DECIMAL(15, 2) NOT NULL,
   tag        VARCHAR(255)                         DEFAULT NULL,
   added_at   TIMESTAMP      NOT NULL              DEFAULT CURRENT_TIMESTAMP,
@@ -116,9 +116,6 @@ CREATE TABLE IF NOT EXISTS user_auths (
 
 ALTER TABLE transactions
   ADD CONSTRAINT fk_transactions_users FOREIGN KEY (user_id) REFERENCES users (user_id)
-  ON DELETE NO ACTION
-  ON UPDATE NO ACTION,
-  ADD CONSTRAINT fk_transactions_products FOREIGN KEY (product_id) REFERENCES products (product_id)
   ON DELETE NO ACTION
   ON UPDATE NO ACTION;
 

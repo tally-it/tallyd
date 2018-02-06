@@ -10,7 +10,7 @@ Ein Tool für Hackspaces, Vereine, Gruppen und Firmen um eine Strichliste digita
 | POST        | /v1/user                    | Sign Up                     |
 | POST        | /v1/login                   | Login                       |
 | GET         | /v1/user/:id                | User Detail                 |
-| POST        | /v1/user/:id/transaction    | TODO: Kontostand ändern +-  |
+| POST        | /v1/user/:id/transaction    | Kontostand ändern +-        |
 | PUT         | /v1/user/:id                | TODO: Benutzerdaten ändern  |
 | DELETE      | /v1/user/:id                | TODO: Benutzer Löschen      |
 
@@ -105,6 +105,36 @@ Gibt Userdetails anhand der ID zurück
     "balance": 0
     }```
     
+#### Add Transaction
+Fügt eine Transaktion hinzu.
+
+- **Method**
+    `POST`
+- **Authentication**
+    Bearer-Token mit JWT wird benötigt.
+    
+    Beispiel für einen Header:
+    ```
+    POST /v1/user/6/transaction HTTP/1.1
+    Host: localhost:8080
+    Content-Type: application/json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOiIyMDE4LTAyLTA2VDEzOjEwOjIwLjU0NDI1NTM0OSswMTowMCIsImlzQWRtaW4iOmZhbHNlLCJpc0Jsb2NrZWQiOmZhbHNlLCJ1c2VySUQiOjZ9.TYU_PK9fBf8xZW99CuphrByzDXSVVfV04YCt2oTjWKM
+    Cache-Control: no-cache
+    ```
+- **URL**
+    `/v1/user/:id/transaction`
+- **Request Body**
+    ```JSON
+    {
+        "userID": 6,
+        "SKU": 151,
+        "value": 23.42,
+        "tag": "Supercool tag which describes the transaction"
+    }
+    ```
+- **Return Body**
+    `-`
+
 ### Produkte
 
 | Methode     | URL                     | Bezeichnung                     |

@@ -38,9 +38,15 @@ type LDAP struct {
 	Bind     string
 }
 
+type JWT struct {
+	Secret    string
+	ValidTime int64
+}
+
 type NewConfig struct {
 	Mysql *Mysql
 	LDAP  *LDAP
+	JWT   *JWT
 }
 
 type Mysql struct {
@@ -75,6 +81,10 @@ func ReadFile(filepath string) (*NewConfig, error) {
 			Bind:     conf.LDAPBind,
 			Protocol: conf.LDAPProtocol,
 			UseSSL:   conf.LDAPUseSSL,
+		},
+		JWT: &JWT{
+			Secret:    conf.JWTSecret,
+			ValidTime: conf.JWTValidTime,
 		},
 	}, nil
 }

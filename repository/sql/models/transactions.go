@@ -25,7 +25,7 @@ import (
 type Transaction struct {
 	PaymentID int         `boil:"payment_id" json:"payment_id" toml:"payment_id" yaml:"payment_id"`
 	UserID    int         `boil:"user_id" json:"user_id" toml:"user_id" yaml:"user_id"`
-	ProductID null.Int    `boil:"product_id" json:"product_id,omitempty" toml:"product_id" yaml:"product_id,omitempty"`
+	SKUID     null.Int    `boil:"SKU_id" json:"SKU_id,omitempty" toml:"SKU_id" yaml:"SKU_id,omitempty"`
 	Value     string      `boil:"value" json:"value" toml:"value" yaml:"value"`
 	Tag       null.String `boil:"tag" json:"tag,omitempty" toml:"tag" yaml:"tag,omitempty"`
 	AddedAt   time.Time   `boil:"added_at" json:"added_at" toml:"added_at" yaml:"added_at"`
@@ -38,7 +38,7 @@ type Transaction struct {
 var TransactionColumns = struct {
 	PaymentID string
 	UserID    string
-	ProductID string
+	SKUID     string
 	Value     string
 	Tag       string
 	AddedAt   string
@@ -46,7 +46,7 @@ var TransactionColumns = struct {
 }{
 	PaymentID: "payment_id",
 	UserID:    "user_id",
-	ProductID: "product_id",
+	SKUID:     "SKU_id",
 	Value:     "value",
 	Tag:       "tag",
 	AddedAt:   "added_at",
@@ -55,16 +55,15 @@ var TransactionColumns = struct {
 
 // transactionR is where relationships are stored.
 type transactionR struct {
-	Product *Product
-	User    *User
+	User *User
 }
 
 // transactionL is where Load methods for each relationship are stored.
 type transactionL struct{}
 
 var (
-	transactionColumns               = []string{"payment_id", "user_id", "product_id", "value", "tag", "added_at", "updated_at"}
-	transactionColumnsWithoutDefault = []string{"user_id", "product_id", "value", "tag", "updated_at"}
+	transactionColumns               = []string{"payment_id", "user_id", "SKU_id", "value", "tag", "added_at", "updated_at"}
+	transactionColumnsWithoutDefault = []string{"user_id", "SKU_id", "value", "tag", "updated_at"}
 	transactionColumnsWithDefault    = []string{"payment_id", "added_at"}
 	transactionPrimaryKeyColumns     = []string{"payment_id"}
 )
@@ -198,25 +197,6 @@ func (q transactionQuery) Exists() (bool, error) {
 	return count > 0, nil
 }
 
-// ProductG pointed to by the foreign key.
-func (o *Transaction) ProductG(mods ...qm.QueryMod) productQuery {
-	return o.Product(boil.GetDB(), mods...)
-}
-
-// Product pointed to by the foreign key.
-func (o *Transaction) Product(exec boil.Executor, mods ...qm.QueryMod) productQuery {
-	queryMods := []qm.QueryMod{
-		qm.Where("product_id=?", o.ProductID),
-	}
-
-	queryMods = append(queryMods, mods...)
-
-	query := Products(exec, queryMods...)
-	queries.SetFrom(query.Query, "`products`")
-
-	return query
-}
-
 // UserG pointed to by the foreign key.
 func (o *Transaction) UserG(mods ...qm.QueryMod) userQuery {
 	return o.User(boil.GetDB(), mods...)
@@ -234,77 +214,7 @@ func (o *Transaction) User(exec boil.Executor, mods ...qm.QueryMod) userQuery {
 	queries.SetFrom(query.Query, "`users`")
 
 	return query
-} // LoadProduct allows an eager lookup of values, cached into the
-// loaded structs of the objects.
-func (transactionL) LoadProduct(e boil.Executor, singular bool, maybeTransaction interface{}) error {
-	var slice []*Transaction
-	var object *Transaction
-
-	count := 1
-	if singular {
-		object = maybeTransaction.(*Transaction)
-	} else {
-		slice = *maybeTransaction.(*[]*Transaction)
-		count = len(slice)
-	}
-
-	args := make([]interface{}, count)
-	if singular {
-		if object.R == nil {
-			object.R = &transactionR{}
-		}
-		args[0] = object.ProductID
-	} else {
-		for i, obj := range slice {
-			if obj.R == nil {
-				obj.R = &transactionR{}
-			}
-			args[i] = obj.ProductID
-		}
-	}
-
-	query := fmt.Sprintf(
-		"select * from `products` where `product_id` in (%s)",
-		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
-	)
-
-	if boil.DebugMode {
-		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
-	}
-
-	results, err := e.Query(query, args...)
-	if err != nil {
-		return errors.Wrap(err, "failed to eager load Product")
-	}
-	defer results.Close()
-
-	var resultSlice []*Product
-	if err = queries.Bind(results, &resultSlice); err != nil {
-		return errors.Wrap(err, "failed to bind eager loaded slice Product")
-	}
-
-	if len(resultSlice) == 0 {
-		return nil
-	}
-
-	if singular {
-		object.R.Product = resultSlice[0]
-		return nil
-	}
-
-	for _, local := range slice {
-		for _, foreign := range resultSlice {
-			if local.ProductID.Int == foreign.ProductID {
-				local.R.Product = foreign
-				break
-			}
-		}
-	}
-
-	return nil
-}
-
-// LoadUser allows an eager lookup of values, cached into the
+} // LoadUser allows an eager lookup of values, cached into the
 // loaded structs of the objects.
 func (transactionL) LoadUser(e boil.Executor, singular bool, maybeTransaction interface{}) error {
 	var slice []*Transaction
@@ -371,143 +281,6 @@ func (transactionL) LoadUser(e boil.Executor, singular bool, maybeTransaction in
 		}
 	}
 
-	return nil
-}
-
-// SetProductG of the transaction to the related item.
-// Sets o.R.Product to related.
-// Adds o to related.R.Transactions.
-// Uses the global database handle.
-func (o *Transaction) SetProductG(insert bool, related *Product) error {
-	return o.SetProduct(boil.GetDB(), insert, related)
-}
-
-// SetProductP of the transaction to the related item.
-// Sets o.R.Product to related.
-// Adds o to related.R.Transactions.
-// Panics on error.
-func (o *Transaction) SetProductP(exec boil.Executor, insert bool, related *Product) {
-	if err := o.SetProduct(exec, insert, related); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// SetProductGP of the transaction to the related item.
-// Sets o.R.Product to related.
-// Adds o to related.R.Transactions.
-// Uses the global database handle and panics on error.
-func (o *Transaction) SetProductGP(insert bool, related *Product) {
-	if err := o.SetProduct(boil.GetDB(), insert, related); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// SetProduct of the transaction to the related item.
-// Sets o.R.Product to related.
-// Adds o to related.R.Transactions.
-func (o *Transaction) SetProduct(exec boil.Executor, insert bool, related *Product) error {
-	var err error
-	if insert {
-		if err = related.Insert(exec); err != nil {
-			return errors.Wrap(err, "failed to insert into foreign table")
-		}
-	}
-
-	updateQuery := fmt.Sprintf(
-		"UPDATE `transactions` SET %s WHERE %s",
-		strmangle.SetParamNames("`", "`", 0, []string{"product_id"}),
-		strmangle.WhereClause("`", "`", 0, transactionPrimaryKeyColumns),
-	)
-	values := []interface{}{related.ProductID, o.PaymentID}
-
-	if boil.DebugMode {
-		fmt.Fprintln(boil.DebugWriter, updateQuery)
-		fmt.Fprintln(boil.DebugWriter, values)
-	}
-
-	if _, err = exec.Exec(updateQuery, values...); err != nil {
-		return errors.Wrap(err, "failed to update local table")
-	}
-
-	o.ProductID.Int = related.ProductID
-	o.ProductID.Valid = true
-
-	if o.R == nil {
-		o.R = &transactionR{
-			Product: related,
-		}
-	} else {
-		o.R.Product = related
-	}
-
-	if related.R == nil {
-		related.R = &productR{
-			Transactions: TransactionSlice{o},
-		}
-	} else {
-		related.R.Transactions = append(related.R.Transactions, o)
-	}
-
-	return nil
-}
-
-// RemoveProductG relationship.
-// Sets o.R.Product to nil.
-// Removes o from all passed in related items' relationships struct (Optional).
-// Uses the global database handle.
-func (o *Transaction) RemoveProductG(related *Product) error {
-	return o.RemoveProduct(boil.GetDB(), related)
-}
-
-// RemoveProductP relationship.
-// Sets o.R.Product to nil.
-// Removes o from all passed in related items' relationships struct (Optional).
-// Panics on error.
-func (o *Transaction) RemoveProductP(exec boil.Executor, related *Product) {
-	if err := o.RemoveProduct(exec, related); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// RemoveProductGP relationship.
-// Sets o.R.Product to nil.
-// Removes o from all passed in related items' relationships struct (Optional).
-// Uses the global database handle and panics on error.
-func (o *Transaction) RemoveProductGP(related *Product) {
-	if err := o.RemoveProduct(boil.GetDB(), related); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// RemoveProduct relationship.
-// Sets o.R.Product to nil.
-// Removes o from all passed in related items' relationships struct (Optional).
-func (o *Transaction) RemoveProduct(exec boil.Executor, related *Product) error {
-	var err error
-
-	o.ProductID.Valid = false
-	if err = o.Update(exec, "product_id"); err != nil {
-		o.ProductID.Valid = true
-		return errors.Wrap(err, "failed to update local table")
-	}
-
-	o.R.Product = nil
-	if related == nil || related.R == nil {
-		return nil
-	}
-
-	for i, ri := range related.R.Transactions {
-		if o.ProductID.Int != ri.ProductID.Int {
-			continue
-		}
-
-		ln := len(related.R.Transactions)
-		if ln > 1 && i < ln-1 {
-			related.R.Transactions[i] = related.R.Transactions[ln-1]
-		}
-		related.R.Transactions = related.R.Transactions[:ln-1]
-		break
-	}
 	return nil
 }
 

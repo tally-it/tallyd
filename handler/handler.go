@@ -34,14 +34,16 @@ import (
 var pkgLogger = log.New("config")
 
 type Handler struct {
-	repo *sql.Mysql
-	ldap *ldap.LDAP
+	repo       *sql.Mysql
+	ldap       *ldap.LDAP
+	authorizer authorizer
 }
 
-func New(repo *sql.Mysql, ldap *ldap.LDAP) *Handler {
+func New(repo *sql.Mysql, ldap *ldap.LDAP, authorizer authorizer) *Handler {
 	return &Handler{
-		repo: repo,
-		ldap: ldap,
+		repo:       repo,
+		ldap:       ldap,
+		authorizer: authorizer,
 	}
 }
 
@@ -145,11 +147,18 @@ func (h *Handler) Routes() []*router.Route {
 			"GET",
 			"/v1/product",
 			wrap(h.productIndex),
-		}, {
+		},
+		{
 			"GetProductDetail",
 			"GET",
 			"/v1/product/:sku",
 			wrap(h.productDetail),
+		},
+		{
+			"AddTransaction",
+			"POST",
+			"/v1/user/:id/transaction",
+			wrap(h.authorizer.Authorize(h.addTransaction, authTypeAll)),
 		},
 	}
 }

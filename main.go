@@ -46,7 +46,11 @@ func main() {
 		logger.Fatal("bailing")
 	}
 
-	r := router.NewRouter(handler.New(db, l))
+	authorizer := &handler.JWTAuthorizer{
+		Secret: conf.JWT.Secret,
+	}
+
+	r := router.NewRouter(handler.New(db, l, authorizer))
 
 	logger.Info("running...")
 

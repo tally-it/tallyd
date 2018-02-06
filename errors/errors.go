@@ -51,7 +51,15 @@ func Unauthorized() error {
 	return &Error{
 		Status:  http.StatusUnauthorized,
 		Message: http.StatusText(http.StatusUnauthorized),
-		Details: "login failed",
+		Details: "not authorized",
+	}
+}
+
+func Unauthenticated() error {
+	return &Error{
+		Status:  http.StatusForbidden,
+		Message: http.StatusText(http.StatusForbidden),
+		Details: "not authenticated",
 	}
 }
 

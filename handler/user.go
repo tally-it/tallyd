@@ -10,6 +10,7 @@ import (
 	"github.com/marove2000/hack-and-pay/contract"
 	"github.com/marove2000/hack-and-pay/errors"
 	"github.com/marove2000/hack-and-pay/config"
+	"github.com/marove2000/hack-and-pay/ctxutil"
 
 	"github.com/go-validator/validator"
 	"github.com/dgrijalva/jwt-go"
@@ -97,6 +98,48 @@ func (h *Handler) signUp(ctx context.Context, r *http.Request, pathParams map[st
 	return &contract.AddUserResponseBody{UserID: id}, err
 }
 
+func (h *Handler) addTransaction(ctx context.Context, r *http.Request, pathParams map[string]string) (interface{}, error) {
+	logger := pkgLogger.ForFunc(ctx, "addTransaction")
+	logger.Debug("enter handler")
+
+	// read id
+	userID := pathParams["id"]
+	id, err := strconv.Atoi(userID)
+	if err != nil {
+		logger.WithError(err).Error(err.Error())
+		return nil, errors.BadRequest("failed to parse id")
+	}
+
+	// read body
+	transaction := &contract.ChangeBalanceRequestBody{}
+	decoder := json.NewDecoder(r.Body)
+	err = decoder.Decode(transaction)
+	if err != nil {
+		logger.WithError(err).Error("failed to parse body")
+		return nil, errors.BadRequest(err.Error())
+	}
+	defer r.Body.Close()
+
+	if err = validator.Validate(transaction); err != nil {
+		logger.WithError(err).Warn("bad request")
+		return nil, errors.BadRequest(err.Error())
+	}
+
+	if (id == ctxutil.GetUserID(ctx) && id == transaction.UserID) || ctxutil.GetAdminStatus(ctx){
+		// add data
+		err = h.repo.AddTransaction(ctx, *transaction)
+		if err != nil {
+			logger.WithError(err).Error("failed to insert transaction")
+			return nil, err
+		}
+	} else {
+		logger.Warn("bad request")
+		return nil, errors.BadRequest("Bad request")
+	}
+
+	return nil, nil
+}
+
 func (h *Handler) login(ctx context.Context, r *http.Request, pathParams map[string]string) (interface{}, error) {
 	logger := pkgLogger.ForFunc(ctx, "login")
 	logger.Debug("enter handler")
@@ -140,10 +183,9 @@ func (h *Handler) login(ctx context.Context, r *http.Request, pathParams map[str
 	// create JWT
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"userID":    u.UserID,
-		"Name":      u.Name,
-		"IsBlocked":  u.IsBlocked,
-		"IsAdmin":   u.IsAdmin,
-		"ExpiresAt": time.Now().Add(time.Second * time.Duration(conf.JWTValidTime)),
+		"isBlocked": u.IsBlocked,
+		"isAdmin":   u.IsAdmin,
+		"exp": time.Now().Add(time.Second * time.Duration(conf.JWTValidTime)),
 	})
 	tokenString, err := token.SignedString([]byte(conf.JWTSecret))
 	if err != nil {

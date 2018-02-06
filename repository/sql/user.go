@@ -11,6 +11,9 @@ import (
 	"github.com/vattle/sqlboiler/queries/qm"
 	"gopkg.in/nullbio/null.v6"
 	"golang.org/x/crypto/bcrypt"
+	"github.com/dgrijalva/jwt-go"
+	"fmt"
+	"github.com/marove2000/hack-and-pay/config"
 )
 
 func (m *Mysql) AddLocalUser(ctx context.Context, body *contract.AddUserRequestBody) (userID int, err error) {
@@ -132,6 +135,37 @@ func (m *Mysql) GetPublicUserDataByUserID(ctx context.Context, userID int) (*con
 		Name:   user.Name,
 		Email:  user.Email.String,
 	}, nil
+}
+
+func (m *Mysql) CheckIsAdminJWT(ctx context.Context, JWT string, userID int) (error) {
+	logger := pkgLogger.ForFunc(ctx, "CheckJWT")
+	logger.Debug("enter repository")
+
+	// read config
+	conf := config.ReadConfig()
+
+	token, err := jwt.Parse(JWT, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			err := fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+			return nil, err
+		}
+		return []byte(conf.JWTSecret), nil
+	})
+
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+
+		if claims["userIsAdmin"].(bool) == true {
+			// user is admin
+			// TODO: Check Timeout
+			return nil
+		} else {
+			err := fmt.Errorf("user is no admin")
+			return err
+		}
+
+	} else {
+		return err
+	}
 }
 
 func (m *Mysql) GetPublicUserDataByUserName(ctx context.Context, name string) (*contract.User, error) {
