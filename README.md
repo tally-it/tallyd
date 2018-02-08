@@ -1,25 +1,25 @@
 # Hack-n-Pay
-Ein Tool für Hackspaces, Vereine, Gruppen und Firmen um eine Strichliste digital zu verwalten.
+A tool for hack spaces, clubs, groups and companies to manage a digital tally sheet.
 
-## API Dokumentation
+## API Documentation
 
 ### User
 
-| Methode     | URL                         | Bezeichnung                     |
+| Method      | URL                         | Description                     |
 | --------    | --------                    | --------                        |
-| GET         | /v1/user                    | User Index                      |
-| POST        | /v1/user                    | Sign Up                         |
+| GET         | /v1/user                    | User index                      |
+| POST        | /v1/user                    | Sign up                         |
 | POST        | /v1/login                   | Login                           |
-| GET         | /v1/user/:id                | User Detail                     |
-| POST        | /v1/user/:id/transaction    | Kontostand ändern +-            |
-| PUT         | /v1/user/:id                | TODO: Benutzerdaten ändern      |
-| DELETE      | /v1/user/:id                | TODO: Benutzer Löschen          |
-| POST        | /v1/user/:id/auth/:authtype | TODO: Authentifizierung anlegen |
-| PUT         | /v1/user/:id/auth/:authtype | TODO: Authentifizierung ändern  |
-| DELETE      | /v1/user/:id/auth/:authtype | TODO: Authentifizierung löschen |
+| GET         | /v1/user/:id                | User detail                     |
+| POST        | /v1/user/:id/transaction    | Change balance +-               |
+| PUT         | /v1/user/:id                | TODO: Change user data          |
+| DELETE      | /v1/user/:id                | TODO: Delete user               |
+| POST        | /v1/user/:id/auth/:authtype | TODO: Add authentication        |
+| PUT         | /v1/user/:id/auth/:authtype | TODO: Change authentication     |
+| DELETE      | /v1/user/:id/auth/:authtype | TODO: Delete authentication     |
 
 #### User Index
-Gibt einen Index aller User zurück.
+Returns an index of all users.
 
 - **Method**
     `GET`
@@ -50,7 +50,7 @@ Gibt einen Index aller User zurück.
     ```
     
 #### Sign Up
-Fügt Benutzer hinzu
+Adds user to database.
 
 - **Method**
     `POST`
@@ -60,7 +60,7 @@ Fügt Benutzer hinzu
     ```json
     {
         "name": "username",
-        "email": "blub@blub.de",
+        "email": "blub@blub.com",
         "password": "pa$$word"
     }
     ```
@@ -72,7 +72,7 @@ Fügt Benutzer hinzu
     ```
 
 #### Login
-Login und erstellen eines JWT
+Login and create JWT.
 
 - **Method**
     `POST`
@@ -87,10 +87,10 @@ Login und erstellen eines JWT
     }
     ```
 - **Return Body**
-   JWT-Token. Beispiel: `"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJFeHBpcmVzQXQiOiIyMDE4LTAxLTI5VDExOjE0OjE5LjIzNjAwMjE2KzAxOjAwIiwiSXNBY3RpdmUiOmZhbHNlLCJJc0FkbWluIjpmYWxzZSwiTmFtZSI6InRlc3R1c2VyIiwidXNlcklEIjo2fQ.Vm2NKt8a5KXKQhEaeb1wBQbPplAXlrkhZ05ZgaKHIAY"`
+   JWT-Token. Example: `"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJFeHBpcmVzQXQiOiIyMDE4LTAxLTI5VDExOjE0OjE5LjIzNjAwMjE2KzAxOjAwIiwiSXNBY3RpdmUiOmZhbHNlLCJJc0FkbWluIjpmYWxzZSwiTmFtZSI6InRlc3R1c2VyIiwidXNlcklEIjo2fQ.Vm2NKt8a5KXKQhEaeb1wBQbPplAXlrkhZ05ZgaKHIAY"`
 
 #### User Detail
-Gibt Userdetails anhand der ID zurück
+Returns user detail based on user id.
 
 - **Method**
     `GET`
@@ -103,21 +103,21 @@ Gibt Userdetails anhand der ID zurück
     {
     "userID": 6,
     "name": "testuser",
-    "email": "blub@blub.de",
+    "email": "blub@blub.com",
     "active": false,
     "isAdmin": false,
     "balance": 0
     }```
     
 #### Add Transaction
-Fügt eine Transaktion hinzu.
+Adds a transaction.
 
 - **Method**
     `POST`
 - **Authentication**
-    Bearer-Token mit JWT wird benötigt.
+    Bearer-Token with JWT is needed.
     
-    Beispiel für einen Header:
+    Example header:
     ```
     POST /v1/user/6/transaction HTTP/1.1
     Host: localhost:8080
@@ -131,27 +131,34 @@ Fügt eine Transaktion hinzu.
     ```JSON
     {
         "userID": 6,
-        "SKU": 151,
+        "sku": 151,
+        "tag": "Supercool tag which describes the transaction"
+    }
+    ```
+    or
+    ```JSON
+    {
+        "userID": 6,
         "value": 23.42,
         "tag": "Supercool tag which describes the transaction"
     }
     ```
 - **Return Body**
     `-`
+    
+### Products
 
-### Produkte
-
-| Methode     | URL                     | Bezeichnung                     |
+| Method      | URL                     | Description                     |
 | --------    | --------                | --------                        |
-| GET         | /v1/product             | Produkt Index                   |
-| POST        | /v1/product             | Produkt hinzufügen              |
-| GET         | /v1/product/:id         | Produkt Detail                  |
-| PUT         | /v1/product/:id         | TODO: Produkt ändern            |
-| POST        | /v1/product/:id/stock   | TODO: Lagerbestand ändern +-    |
-| DELETE      | /v1/product/:id         | TODO: Produkt Löschen           |
+| GET         | /v1/product             | Product index                   |
+| POST        | /v1/product             | Add product                     |
+| GET         | /v1/product/:id         | Product detail                  |
+| PUT         | /v1/product/:id         | TODO: Change product            |
+| POST        | /v1/product/:id/stock   | TODO: Change stock +-           |
+| DELETE      | /v1/product/:id         | TODO: Delete product            |
 
-#### Produkt Index
-Gibt einen Index aller Produkte zurück.
+#### Product Index
+Returns an index of all products with quantity in stock.
 
 - **Method**
     `GET`
@@ -165,7 +172,7 @@ Gibt einen Index aller Produkte zurück.
     {
         "productID": 2,
         "SKU": 151,
-        "Name": "testprodukt neuer name",
+        "Name": "test product",
         "GTIN": 123456,
         "price": 12.4,
         "visibility": false,
@@ -177,7 +184,7 @@ Gibt einen Index aller Produkte zurück.
     {
         "productID": 3,
         "SKU": 245,
-        "Name": "ganz anderes produkt",
+        "Name": "other product",
         "GTIN": 754544,
         "price": 11.25,
         "visibility": false,
@@ -188,8 +195,8 @@ Gibt einen Index aller Produkte zurück.
     }
     ]
     ```
-#### Produkt Detail
-Gibt Produktdetails anhand der SKU zurück
+#### Product Detail
+Returns product detail based on SKU.
 
 - **Method**
     `GET`
@@ -202,7 +209,7 @@ Gibt Produktdetails anhand der SKU zurück
     {
     "productID": 2,
     "SKU": 151,
-    "Name": "testprodukt neuer name",
+    "Name": "testproduct with new name",
     "GTIN": 123456,
     "price": 12.4,
     "visibility": false,
@@ -211,6 +218,19 @@ Gibt Produktdetails anhand der SKU zurück
     "quantityUnit": "g",
     "stock": 0
     }```
+    
+
+### Categories
+
+| Method      | URL                         | Description                             |
+| --------    | --------                    | --------                                |
+| GET         | /v1/category                | TODO: Category detail tree              |
+| POST        | /v1/category                | TODO: Add category                      |
+| GET         | /v1/category/:id            | TODO: Category detail                   |
+| PUT         | /v1/category/:id            | TODO: Change cateogry                   |
+| POST        | /v1/category/:id/product    | TODO: Add/Delete product from category  |
+| DELETE      | /v1/category/:id            | TODO: Delete category                   |
+
 
 ## Licence
 This project is licenced under MIT licence. See LICENCE file.
