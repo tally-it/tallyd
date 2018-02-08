@@ -1,18 +1,22 @@
 # Hack-n-Pay
 Ein Tool für Hackspaces, Vereine, Gruppen und Firmen um eine Strichliste digital zu verwalten.
+
 ## API Dokumentation
 
 ### User
 
-| Methode     | URL                         | Bezeichnung                 |
-| --------    | --------                    | --------                    |
-| GET         | /v1/user                    | User Index                  |
-| POST        | /v1/user                    | Sign Up                     |
-| POST        | /v1/login                   | Login                       |
-| GET         | /v1/user/:id                | User Detail                 |
-| POST        | /v1/user/:id/transaction    | Kontostand ändern +-        |
-| PUT         | /v1/user/:id                | TODO: Benutzerdaten ändern  |
-| DELETE      | /v1/user/:id                | TODO: Benutzer Löschen      |
+| Methode     | URL                         | Bezeichnung                     |
+| --------    | --------                    | --------                        |
+| GET         | /v1/user                    | User Index                      |
+| POST        | /v1/user                    | Sign Up                         |
+| POST        | /v1/login                   | Login                           |
+| GET         | /v1/user/:id                | User Detail                     |
+| POST        | /v1/user/:id/transaction    | Kontostand ändern +-            |
+| PUT         | /v1/user/:id                | TODO: Benutzerdaten ändern      |
+| DELETE      | /v1/user/:id                | TODO: Benutzer Löschen          |
+| POST        | /v1/user/:id/auth/:authtype | TODO: Authentifizierung anlegen |
+| PUT         | /v1/user/:id/auth/:authtype | TODO: Authentifizierung ändern  |
+| DELETE      | /v1/user/:id/auth/:authtype | TODO: Authentifizierung löschen |
 
 #### User Index
 Gibt einen Index aller User zurück.
