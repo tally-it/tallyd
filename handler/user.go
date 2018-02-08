@@ -195,9 +195,9 @@ func (h *Handler) login(ctx context.Context, r *http.Request, pathParams map[str
 		"userID":    u.UserID,
 		"isBlocked": u.IsBlocked,
 		"isAdmin":   u.IsAdmin,
-		"exp":       time.Now().Add(time.Second * time.Duration(conf.JWTValidTime)),
+		"exp":       time.Now().Add(time.Second * time.Duration(conf.JWT.ValidTime)),
 	})
-	tokenString, err := token.SignedString([]byte(conf.JWTSecret))
+	tokenString, err := token.SignedString([]byte(conf.JWT.Secret))
 	if err != nil {
 		return nil, err
 	}

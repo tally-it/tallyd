@@ -23,6 +23,10 @@ func New(conf *config.LDAP) (*LDAP, error) {
 	logger := pkgLogger.ForFunc(context.Background(), "New")
 	logger.Debug("enter LDAP")
 
+	if conf == nil || conf.Active {
+		return &LDAP{}, nil
+	}
+
 	// TODO Check Certificate
 	tlsConfig := &tls.Config{InsecureSkipVerify: true}
 
