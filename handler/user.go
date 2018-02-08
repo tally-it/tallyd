@@ -138,7 +138,7 @@ func (h *Handler) addTransaction(ctx context.Context, r *http.Request, pathParam
 
 	if (id == ctxutil.GetUserID(ctx) && id == transaction.UserID) || ctxutil.GetAdminStatus(ctx) {
 		// add data
-		err = h.repo.AddTransaction(ctx, *transaction)
+		err = h.repo.AddTransaction(ctx, transaction)
 		if err != nil {
 			return nil, err
 		}

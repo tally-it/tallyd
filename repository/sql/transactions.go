@@ -38,26 +38,26 @@ func (m *Mysql) GetUsersWithBalance(ctx context.Context) ([]*contract.User, erro
 	return users, nil
 }
 
-func (m *Mysql) AddTransaction(ctx context.Context, body contract.ChangeBalanceRequestBody) (error) {
+func (m *Mysql) AddTransaction(ctx context.Context, r *contract.ChangeBalanceRequestBody) error {
 	logger := pkgLogger.ForFunc(ctx, "AddTransaction")
 	logger.Debug("enter repository")
 
 	var sku null.Int
-	if body.SKU != 0 {
-		sku = null.IntFrom(body.SKU)
+	if r.SKU != 0 {
+		sku = null.IntFrom(r.SKU)
 	}
 
 	transaction := models.Transaction{
-		UserID: null.IntFrom(body.UserID),
+		UserID: null.IntFrom(r.UserID),
 		SKUID:  sku,
-		Value:  body.Value.String(),
-		Tag:    null.StringFrom(body.Tag),
+		Value:  r.Value.String(),
+		Tag:    null.StringFrom(r.Tag),
 	}
 
 	var err error
-	if body.SKU != 0 {
+	if r.SKU != 0 {
 		// check if SKU ID is existing
-		_, err = models.Products(m.db, qm.Where("SKU_id=?", body.SKU)).One()
+		_, err = models.Products(m.db, qm.Where("SKU_id=?", r.SKU)).One()
 		if err != nil && err != sql.ErrNoRows {
 			logger.WithError(err).Error("failed to get product")
 			return errors.InternalServerError("db error", err)
@@ -65,11 +65,11 @@ func (m *Mysql) AddTransaction(ctx context.Context, body contract.ChangeBalanceR
 
 		if err == sql.ErrNoRows {
 			logger.WithError(err).Error(err)
-			logger.Warn("failed to find product with sku ", body.SKU)
-			body.SKU = 0
+			logger.Warn("failed to find product with sku ", r.SKU)
+			r.SKU = 0
 		}
 
-		product, err := m.GetProductBySKU(ctx, body.SKU)
+		product, err := m.GetProductBySKU(ctx, r.SKU)
 		if err != nil {
 			return err
 		}
@@ -88,7 +88,7 @@ func (m *Mysql) AddTransaction(ctx context.Context, body contract.ChangeBalanceR
 
 		switch sqlerr.Number {
 		case 1452:
-			logger.WithField("sku", body.SKU).Warn("sku not found")
+			logger.WithField("sku", r.SKU).Warn("sku not found")
 			return errors.NotFound("sku not found")
 		default:
 			logger.WithError(err).Error("failed to insert transaction")
