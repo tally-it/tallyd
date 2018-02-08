@@ -29,7 +29,6 @@ func (m *Mysql) GetUsersWithBalance(ctx context.Context) ([]*contract.User, erro
 		FROM users 
 		LEFT JOIN transactions 
 		ON users.user_id = transactions.user_id 
-		WHERE users.deleted_at IS NULL 
 		GROUP BY users.user_id`)
 	if err != nil {
 		logger.WithError(err).Error("failed to fetch users from db")
