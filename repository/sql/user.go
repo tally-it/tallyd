@@ -149,7 +149,7 @@ func (m *Mysql) CheckIsAdminJWT(ctx context.Context, JWT string, userID int) (er
 			err := fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
 			return nil, err
 		}
-		return []byte(conf.JWTSecret), nil
+		return []byte(conf.JWT.Secret), nil
 	})
 
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
