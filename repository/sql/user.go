@@ -166,6 +166,19 @@ func (m *Mysql) GetPublicUserDataByUserName(ctx context.Context, name string) (*
 	}, nil
 }
 
+func (m *Mysql) GetUserCount(ctx context.Context) (int64, error) {
+	logger := pkgLogger.ForFunc(ctx, "GetUserCount")
+	logger.Debug("enter repository")
+
+	userCount, err := models.Users(m.db).Count()
+	if err != nil {
+		logger.WithError(err).Error("failed to count users")
+		return 0, errors.InternalServerError("db error", err)
+	}
+
+	return userCount, nil
+}
+
 func (m *Mysql) Login(ctx context.Context, name, pass string) error {
 	logger := pkgLogger.ForFunc(ctx, "Login")
 	logger.Debug("enter repository")

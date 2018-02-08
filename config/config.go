@@ -14,9 +14,16 @@ import (
 var pkgLogger = log.New("config")
 
 type Config struct {
-	Mysql *Mysql
-	LDAP  *LDAP
-	JWT   *JWT
+	Mysql     *Mysql
+	LDAP      *LDAP
+	JWT       *JWT
+	Bootstrap *Bootstrap
+}
+
+type Bootstrap struct {
+	User       string `validate:"nonzero"`
+	Password   string `validate:"nonzero"`
+	KeepActive bool
 }
 
 type LDAP struct {
@@ -50,7 +57,18 @@ func ReadFile(filepath string) (*Config, error) {
 		return nil, errors.InternalServerError("failed to load config file", err)
 	}
 
-	err := validator.Validate(conf.JWT)
+	if conf.Bootstrap == nil {
+		logger.Error("missing bootstrap config")
+		return nil, errors.InternalServerError("failed to read config", nil)
+	}
+
+	err := validator.Validate(conf.Bootstrap)
+	if err != nil {
+		logger.WithError(err).Error("failed to validate Bootstrap config")
+		return nil, errors.InternalServerError("failed to read config", err)
+	}
+
+	err = validator.Validate(conf.JWT)
 	if err != nil {
 		logger.WithError(err).Error("failed to validate JWT config")
 		return nil, errors.InternalServerError("failed to read config", err)

@@ -46,6 +46,11 @@ func main() {
 		logger.Fatal("bailing")
 	}
 
+	err = bootstrap(db, conf.Bootstrap)
+	if err != nil {
+		logger.Fatal("bailing")
+	}
+
 	authorizer := &handler.JWTAuthorizer{
 		Secret: conf.JWT.Secret,
 	}
@@ -55,4 +60,29 @@ func main() {
 	logger.Info("running...")
 
 	logger.WithError(http.ListenAndServe(":8080", r)).Error("bailing")
+}
+
+func bootstrap(db *sql.Mysql, conf *config.Bootstrap) error {
+	logger := pkgLogger.ForFunc(context.Background(), "bootstrap")
+	logger.Debug("enter bootstrap")
+
+	users, err := db.GetUserCount(context.Background())
+	if err != nil {
+		return err
+	}
+
+	// if there are users we don't need to bootstrap
+	if users != 0 {
+		logger.Info("no bootstrapping needed")
+		return nil
+	}
+
+	logger.Info("user database empty, adding bootstrap user")
+
+	_, err = db.AddLocalUser(context.Background(), conf.User, "", conf.Password)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
