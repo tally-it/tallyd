@@ -14,6 +14,7 @@ import (
 
 	"github.com/go-validator/validator"
 	"github.com/dgrijalva/jwt-go"
+	"github.com/shopspring/decimal"
 )
 
 func (h *Handler) publicUserIndex(ctx context.Context, r *http.Request, pathParams map[string]string) (interface{}, error) {
@@ -125,11 +126,20 @@ func (h *Handler) addTransaction(ctx context.Context, r *http.Request, pathParam
 		return nil, errors.BadRequest(err.Error())
 	}
 
-	if (id == ctxutil.GetUserID(ctx) && id == transaction.UserID) || ctxutil.GetAdminStatus(ctx){
+	logger.Info(transaction.Value)
+	switch {
+	case transaction.SKU != 0 && transaction.Value.Cmp(decimal.Zero) != 0:
+		logger.Warn("both SKU and value are set")
+		return nil, errors.BadRequest("both SKU and value are set")
+	case transaction.SKU == 0 && transaction.Value.Cmp(decimal.Zero) == 0:
+		logger.Warn("both SKU and value are zero")
+		return nil, errors.BadRequest("both SKU and value are zero")
+	}
+
+	if (id == ctxutil.GetUserID(ctx) && id == transaction.UserID) || ctxutil.GetAdminStatus(ctx) {
 		// add data
 		err = h.repo.AddTransaction(ctx, *transaction)
 		if err != nil {
-			logger.WithError(err).Error("failed to insert transaction")
 			return nil, err
 		}
 	} else {
@@ -185,7 +195,7 @@ func (h *Handler) login(ctx context.Context, r *http.Request, pathParams map[str
 		"userID":    u.UserID,
 		"isBlocked": u.IsBlocked,
 		"isAdmin":   u.IsAdmin,
-		"exp": time.Now().Add(time.Second * time.Duration(conf.JWTValidTime)),
+		"exp":       time.Now().Add(time.Second * time.Duration(conf.JWTValidTime)),
 	})
 	tokenString, err := token.SignedString([]byte(conf.JWTSecret))
 	if err != nil {

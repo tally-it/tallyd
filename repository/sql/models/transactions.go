@@ -23,49 +23,50 @@ import (
 
 // Transaction is an object representing the database table.
 type Transaction struct {
-	PaymentID int         `boil:"payment_id" json:"payment_id" toml:"payment_id" yaml:"payment_id"`
-	UserID    int         `boil:"user_id" json:"user_id" toml:"user_id" yaml:"user_id"`
-	SKUID     null.Int    `boil:"SKU_id" json:"SKU_id,omitempty" toml:"SKU_id" yaml:"SKU_id,omitempty"`
-	Value     string      `boil:"value" json:"value" toml:"value" yaml:"value"`
-	Tag       null.String `boil:"tag" json:"tag,omitempty" toml:"tag" yaml:"tag,omitempty"`
-	AddedAt   time.Time   `boil:"added_at" json:"added_at" toml:"added_at" yaml:"added_at"`
-	UpdatedAt null.Time   `boil:"updated_at" json:"updated_at,omitempty" toml:"updated_at" yaml:"updated_at,omitempty"`
+	TransactionID int         `boil:"transaction_id" json:"transaction_id" toml:"transaction_id" yaml:"transaction_id"`
+	UserID        null.Int    `boil:"user_id" json:"user_id,omitempty" toml:"user_id" yaml:"user_id,omitempty"`
+	SKUID         null.Int    `boil:"SKU_id" json:"SKU_id,omitempty" toml:"SKU_id" yaml:"SKU_id,omitempty"`
+	Value         string      `boil:"value" json:"value" toml:"value" yaml:"value"`
+	Tag           null.String `boil:"tag" json:"tag,omitempty" toml:"tag" yaml:"tag,omitempty"`
+	AddedAt       time.Time   `boil:"added_at" json:"added_at" toml:"added_at" yaml:"added_at"`
+	UpdatedAt     null.Time   `boil:"updated_at" json:"updated_at,omitempty" toml:"updated_at" yaml:"updated_at,omitempty"`
 
 	R *transactionR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L transactionL  `boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
 var TransactionColumns = struct {
-	PaymentID string
-	UserID    string
-	SKUID     string
-	Value     string
-	Tag       string
-	AddedAt   string
-	UpdatedAt string
+	TransactionID string
+	UserID        string
+	SKUID         string
+	Value         string
+	Tag           string
+	AddedAt       string
+	UpdatedAt     string
 }{
-	PaymentID: "payment_id",
-	UserID:    "user_id",
-	SKUID:     "SKU_id",
-	Value:     "value",
-	Tag:       "tag",
-	AddedAt:   "added_at",
-	UpdatedAt: "updated_at",
+	TransactionID: "transaction_id",
+	UserID:        "user_id",
+	SKUID:         "SKU_id",
+	Value:         "value",
+	Tag:           "tag",
+	AddedAt:       "added_at",
+	UpdatedAt:     "updated_at",
 }
 
 // transactionR is where relationships are stored.
 type transactionR struct {
 	User *User
+	SKU  *Product
 }
 
 // transactionL is where Load methods for each relationship are stored.
 type transactionL struct{}
 
 var (
-	transactionColumns               = []string{"payment_id", "user_id", "SKU_id", "value", "tag", "added_at", "updated_at"}
+	transactionColumns               = []string{"transaction_id", "user_id", "SKU_id", "value", "tag", "added_at", "updated_at"}
 	transactionColumnsWithoutDefault = []string{"user_id", "SKU_id", "value", "tag", "updated_at"}
-	transactionColumnsWithDefault    = []string{"payment_id", "added_at"}
-	transactionPrimaryKeyColumns     = []string{"payment_id"}
+	transactionColumnsWithDefault    = []string{"transaction_id", "added_at"}
+	transactionPrimaryKeyColumns     = []string{"transaction_id"}
 )
 
 type (
@@ -214,6 +215,25 @@ func (o *Transaction) User(exec boil.Executor, mods ...qm.QueryMod) userQuery {
 	queries.SetFrom(query.Query, "`users`")
 
 	return query
+}
+
+// SKUG pointed to by the foreign key.
+func (o *Transaction) SKUG(mods ...qm.QueryMod) productQuery {
+	return o.SKU(boil.GetDB(), mods...)
+}
+
+// SKU pointed to by the foreign key.
+func (o *Transaction) SKU(exec boil.Executor, mods ...qm.QueryMod) productQuery {
+	queryMods := []qm.QueryMod{
+		qm.Where("SKU_id=?", o.SKUID),
+	}
+
+	queryMods = append(queryMods, mods...)
+
+	query := Products(exec, queryMods...)
+	queries.SetFrom(query.Query, "`products`")
+
+	return query
 } // LoadUser allows an eager lookup of values, cached into the
 // loaded structs of the objects.
 func (transactionL) LoadUser(e boil.Executor, singular bool, maybeTransaction interface{}) error {
@@ -274,8 +294,78 @@ func (transactionL) LoadUser(e boil.Executor, singular bool, maybeTransaction in
 
 	for _, local := range slice {
 		for _, foreign := range resultSlice {
-			if local.UserID == foreign.UserID {
+			if local.UserID.Int == foreign.UserID {
 				local.R.User = foreign
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadSKU allows an eager lookup of values, cached into the
+// loaded structs of the objects.
+func (transactionL) LoadSKU(e boil.Executor, singular bool, maybeTransaction interface{}) error {
+	var slice []*Transaction
+	var object *Transaction
+
+	count := 1
+	if singular {
+		object = maybeTransaction.(*Transaction)
+	} else {
+		slice = *maybeTransaction.(*[]*Transaction)
+		count = len(slice)
+	}
+
+	args := make([]interface{}, count)
+	if singular {
+		if object.R == nil {
+			object.R = &transactionR{}
+		}
+		args[0] = object.SKUID
+	} else {
+		for i, obj := range slice {
+			if obj.R == nil {
+				obj.R = &transactionR{}
+			}
+			args[i] = obj.SKUID
+		}
+	}
+
+	query := fmt.Sprintf(
+		"select * from `products` where `SKU_id` in (%s)",
+		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
+	)
+
+	if boil.DebugMode {
+		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
+	}
+
+	results, err := e.Query(query, args...)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load Product")
+	}
+	defer results.Close()
+
+	var resultSlice []*Product
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice Product")
+	}
+
+	if len(resultSlice) == 0 {
+		return nil
+	}
+
+	if singular {
+		object.R.SKU = resultSlice[0]
+		return nil
+	}
+
+	for _, local := range slice {
+		for _, foreign := range resultSlice {
+			if local.SKUID.Int == foreign.SKUID {
+				local.R.SKU = foreign
 				break
 			}
 		}
@@ -328,7 +418,7 @@ func (o *Transaction) SetUser(exec boil.Executor, insert bool, related *User) er
 		strmangle.SetParamNames("`", "`", 0, []string{"user_id"}),
 		strmangle.WhereClause("`", "`", 0, transactionPrimaryKeyColumns),
 	)
-	values := []interface{}{related.UserID, o.PaymentID}
+	values := []interface{}{related.UserID, o.TransactionID}
 
 	if boil.DebugMode {
 		fmt.Fprintln(boil.DebugWriter, updateQuery)
@@ -339,7 +429,8 @@ func (o *Transaction) SetUser(exec boil.Executor, insert bool, related *User) er
 		return errors.Wrap(err, "failed to update local table")
 	}
 
-	o.UserID = related.UserID
+	o.UserID.Int = related.UserID
+	o.UserID.Valid = true
 
 	if o.R == nil {
 		o.R = &transactionR{
@@ -360,6 +451,203 @@ func (o *Transaction) SetUser(exec boil.Executor, insert bool, related *User) er
 	return nil
 }
 
+// RemoveUserG relationship.
+// Sets o.R.User to nil.
+// Removes o from all passed in related items' relationships struct (Optional).
+// Uses the global database handle.
+func (o *Transaction) RemoveUserG(related *User) error {
+	return o.RemoveUser(boil.GetDB(), related)
+}
+
+// RemoveUserP relationship.
+// Sets o.R.User to nil.
+// Removes o from all passed in related items' relationships struct (Optional).
+// Panics on error.
+func (o *Transaction) RemoveUserP(exec boil.Executor, related *User) {
+	if err := o.RemoveUser(exec, related); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// RemoveUserGP relationship.
+// Sets o.R.User to nil.
+// Removes o from all passed in related items' relationships struct (Optional).
+// Uses the global database handle and panics on error.
+func (o *Transaction) RemoveUserGP(related *User) {
+	if err := o.RemoveUser(boil.GetDB(), related); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// RemoveUser relationship.
+// Sets o.R.User to nil.
+// Removes o from all passed in related items' relationships struct (Optional).
+func (o *Transaction) RemoveUser(exec boil.Executor, related *User) error {
+	var err error
+
+	o.UserID.Valid = false
+	if err = o.Update(exec, "user_id"); err != nil {
+		o.UserID.Valid = true
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	o.R.User = nil
+	if related == nil || related.R == nil {
+		return nil
+	}
+
+	for i, ri := range related.R.Transactions {
+		if o.UserID.Int != ri.UserID.Int {
+			continue
+		}
+
+		ln := len(related.R.Transactions)
+		if ln > 1 && i < ln-1 {
+			related.R.Transactions[i] = related.R.Transactions[ln-1]
+		}
+		related.R.Transactions = related.R.Transactions[:ln-1]
+		break
+	}
+	return nil
+}
+
+// SetSKUG of the transaction to the related item.
+// Sets o.R.SKU to related.
+// Adds o to related.R.SKUTransactions.
+// Uses the global database handle.
+func (o *Transaction) SetSKUG(insert bool, related *Product) error {
+	return o.SetSKU(boil.GetDB(), insert, related)
+}
+
+// SetSKUP of the transaction to the related item.
+// Sets o.R.SKU to related.
+// Adds o to related.R.SKUTransactions.
+// Panics on error.
+func (o *Transaction) SetSKUP(exec boil.Executor, insert bool, related *Product) {
+	if err := o.SetSKU(exec, insert, related); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// SetSKUGP of the transaction to the related item.
+// Sets o.R.SKU to related.
+// Adds o to related.R.SKUTransactions.
+// Uses the global database handle and panics on error.
+func (o *Transaction) SetSKUGP(insert bool, related *Product) {
+	if err := o.SetSKU(boil.GetDB(), insert, related); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// SetSKU of the transaction to the related item.
+// Sets o.R.SKU to related.
+// Adds o to related.R.SKUTransactions.
+func (o *Transaction) SetSKU(exec boil.Executor, insert bool, related *Product) error {
+	var err error
+	if insert {
+		if err = related.Insert(exec); err != nil {
+			return errors.Wrap(err, "failed to insert into foreign table")
+		}
+	}
+
+	updateQuery := fmt.Sprintf(
+		"UPDATE `transactions` SET %s WHERE %s",
+		strmangle.SetParamNames("`", "`", 0, []string{"SKU_id"}),
+		strmangle.WhereClause("`", "`", 0, transactionPrimaryKeyColumns),
+	)
+	values := []interface{}{related.SKUID, o.TransactionID}
+
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, updateQuery)
+		fmt.Fprintln(boil.DebugWriter, values)
+	}
+
+	if _, err = exec.Exec(updateQuery, values...); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	o.SKUID.Int = related.SKUID
+	o.SKUID.Valid = true
+
+	if o.R == nil {
+		o.R = &transactionR{
+			SKU: related,
+		}
+	} else {
+		o.R.SKU = related
+	}
+
+	if related.R == nil {
+		related.R = &productR{
+			SKUTransactions: TransactionSlice{o},
+		}
+	} else {
+		related.R.SKUTransactions = append(related.R.SKUTransactions, o)
+	}
+
+	return nil
+}
+
+// RemoveSKUG relationship.
+// Sets o.R.SKU to nil.
+// Removes o from all passed in related items' relationships struct (Optional).
+// Uses the global database handle.
+func (o *Transaction) RemoveSKUG(related *Product) error {
+	return o.RemoveSKU(boil.GetDB(), related)
+}
+
+// RemoveSKUP relationship.
+// Sets o.R.SKU to nil.
+// Removes o from all passed in related items' relationships struct (Optional).
+// Panics on error.
+func (o *Transaction) RemoveSKUP(exec boil.Executor, related *Product) {
+	if err := o.RemoveSKU(exec, related); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// RemoveSKUGP relationship.
+// Sets o.R.SKU to nil.
+// Removes o from all passed in related items' relationships struct (Optional).
+// Uses the global database handle and panics on error.
+func (o *Transaction) RemoveSKUGP(related *Product) {
+	if err := o.RemoveSKU(boil.GetDB(), related); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// RemoveSKU relationship.
+// Sets o.R.SKU to nil.
+// Removes o from all passed in related items' relationships struct (Optional).
+func (o *Transaction) RemoveSKU(exec boil.Executor, related *Product) error {
+	var err error
+
+	o.SKUID.Valid = false
+	if err = o.Update(exec, "SKU_id"); err != nil {
+		o.SKUID.Valid = true
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	o.R.SKU = nil
+	if related == nil || related.R == nil {
+		return nil
+	}
+
+	for i, ri := range related.R.SKUTransactions {
+		if o.SKUID.Int != ri.SKUID.Int {
+			continue
+		}
+
+		ln := len(related.R.SKUTransactions)
+		if ln > 1 && i < ln-1 {
+			related.R.SKUTransactions[i] = related.R.SKUTransactions[ln-1]
+		}
+		related.R.SKUTransactions = related.R.SKUTransactions[:ln-1]
+		break
+	}
+	return nil
+}
+
 // TransactionsG retrieves all records.
 func TransactionsG(mods ...qm.QueryMod) transactionQuery {
 	return Transactions(boil.GetDB(), mods...)
@@ -372,13 +660,13 @@ func Transactions(exec boil.Executor, mods ...qm.QueryMod) transactionQuery {
 }
 
 // FindTransactionG retrieves a single record by ID.
-func FindTransactionG(paymentID int, selectCols ...string) (*Transaction, error) {
-	return FindTransaction(boil.GetDB(), paymentID, selectCols...)
+func FindTransactionG(transactionID int, selectCols ...string) (*Transaction, error) {
+	return FindTransaction(boil.GetDB(), transactionID, selectCols...)
 }
 
 // FindTransactionGP retrieves a single record by ID, and panics on error.
-func FindTransactionGP(paymentID int, selectCols ...string) *Transaction {
-	retobj, err := FindTransaction(boil.GetDB(), paymentID, selectCols...)
+func FindTransactionGP(transactionID int, selectCols ...string) *Transaction {
+	retobj, err := FindTransaction(boil.GetDB(), transactionID, selectCols...)
 	if err != nil {
 		panic(boil.WrapErr(err))
 	}
@@ -388,7 +676,7 @@ func FindTransactionGP(paymentID int, selectCols ...string) *Transaction {
 
 // FindTransaction retrieves a single record by ID with an executor.
 // If selectCols is empty Find will return all columns.
-func FindTransaction(exec boil.Executor, paymentID int, selectCols ...string) (*Transaction, error) {
+func FindTransaction(exec boil.Executor, transactionID int, selectCols ...string) (*Transaction, error) {
 	transactionObj := &Transaction{}
 
 	sel := "*"
@@ -396,10 +684,10 @@ func FindTransaction(exec boil.Executor, paymentID int, selectCols ...string) (*
 		sel = strings.Join(strmangle.IdentQuoteSlice(dialect.LQ, dialect.RQ, selectCols), ",")
 	}
 	query := fmt.Sprintf(
-		"select %s from `transactions` where `payment_id`=?", sel,
+		"select %s from `transactions` where `transaction_id`=?", sel,
 	)
 
-	q := queries.Raw(exec, query, paymentID)
+	q := queries.Raw(exec, query, transactionID)
 
 	err := q.Bind(transactionObj)
 	if err != nil {
@@ -413,8 +701,8 @@ func FindTransaction(exec boil.Executor, paymentID int, selectCols ...string) (*
 }
 
 // FindTransactionP retrieves a single record by ID with an executor, and panics on error.
-func FindTransactionP(exec boil.Executor, paymentID int, selectCols ...string) *Transaction {
-	retobj, err := FindTransaction(exec, paymentID, selectCols...)
+func FindTransactionP(exec boil.Executor, transactionID int, selectCols ...string) *Transaction {
+	retobj, err := FindTransaction(exec, transactionID, selectCols...)
 	if err != nil {
 		panic(boil.WrapErr(err))
 	}
@@ -528,13 +816,13 @@ func (o *Transaction) Insert(exec boil.Executor, whitelist ...string) error {
 		return ErrSyncFail
 	}
 
-	o.PaymentID = int(lastID)
-	if lastID != 0 && len(cache.retMapping) == 1 && cache.retMapping[0] == transactionMapping["PaymentID"] {
+	o.TransactionID = int(lastID)
+	if lastID != 0 && len(cache.retMapping) == 1 && cache.retMapping[0] == transactionMapping["TransactionID"] {
 		goto CacheNoHooks
 	}
 
 	identifierCols = []interface{}{
-		o.PaymentID,
+		o.TransactionID,
 	}
 
 	if boil.DebugMode {
@@ -801,7 +1089,7 @@ func (o *Transaction) Upsert(exec boil.Executor, updateColumns []string, whiteli
 
 		cache.query = queries.BuildUpsertQueryMySQL(dialect, "transactions", update, insert)
 		cache.retQuery = fmt.Sprintf(
-			"SELECT %s FROM `transactions` WHERE `payment_id`=?",
+			"SELECT %s FROM `transactions` WHERE `transaction_id`=?",
 			strings.Join(strmangle.IdentQuoteSlice(dialect.LQ, dialect.RQ, ret), ","),
 		)
 
@@ -847,13 +1135,13 @@ func (o *Transaction) Upsert(exec boil.Executor, updateColumns []string, whiteli
 		return ErrSyncFail
 	}
 
-	o.PaymentID = int(lastID)
-	if lastID != 0 && len(cache.retMapping) == 1 && cache.retMapping[0] == transactionMapping["PaymentID"] {
+	o.TransactionID = int(lastID)
+	if lastID != 0 && len(cache.retMapping) == 1 && cache.retMapping[0] == transactionMapping["TransactionID"] {
 		goto CacheNoHooks
 	}
 
 	identifierCols = []interface{}{
-		o.PaymentID,
+		o.TransactionID,
 	}
 
 	if boil.DebugMode {
@@ -912,7 +1200,7 @@ func (o *Transaction) Delete(exec boil.Executor) error {
 	}
 
 	args := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), transactionPrimaryKeyMapping)
-	sql := "DELETE FROM `transactions` WHERE `payment_id`=?"
+	sql := "DELETE FROM `transactions` WHERE `transaction_id`=?"
 
 	if boil.DebugMode {
 		fmt.Fprintln(boil.DebugWriter, sql)
@@ -1030,7 +1318,7 @@ func (o *Transaction) ReloadG() error {
 // Reload refetches the object from the database
 // using the primary keys with an executor.
 func (o *Transaction) Reload(exec boil.Executor) error {
-	ret, err := FindTransaction(exec, o.PaymentID)
+	ret, err := FindTransaction(exec, o.TransactionID)
 	if err != nil {
 		return err
 	}
@@ -1097,16 +1385,16 @@ func (o *TransactionSlice) ReloadAll(exec boil.Executor) error {
 }
 
 // TransactionExists checks if the Transaction row exists.
-func TransactionExists(exec boil.Executor, paymentID int) (bool, error) {
+func TransactionExists(exec boil.Executor, transactionID int) (bool, error) {
 	var exists bool
-	sql := "select exists(select 1 from `transactions` where `payment_id`=? limit 1)"
+	sql := "select exists(select 1 from `transactions` where `transaction_id`=? limit 1)"
 
 	if boil.DebugMode {
 		fmt.Fprintln(boil.DebugWriter, sql)
-		fmt.Fprintln(boil.DebugWriter, paymentID)
+		fmt.Fprintln(boil.DebugWriter, transactionID)
 	}
 
-	row := exec.QueryRow(sql, paymentID)
+	row := exec.QueryRow(sql, transactionID)
 
 	err := row.Scan(&exists)
 	if err != nil {
@@ -1117,13 +1405,13 @@ func TransactionExists(exec boil.Executor, paymentID int) (bool, error) {
 }
 
 // TransactionExistsG checks if the Transaction row exists.
-func TransactionExistsG(paymentID int) (bool, error) {
-	return TransactionExists(boil.GetDB(), paymentID)
+func TransactionExistsG(transactionID int) (bool, error) {
+	return TransactionExists(boil.GetDB(), transactionID)
 }
 
 // TransactionExistsGP checks if the Transaction row exists. Panics on error.
-func TransactionExistsGP(paymentID int) bool {
-	e, err := TransactionExists(boil.GetDB(), paymentID)
+func TransactionExistsGP(transactionID int) bool {
+	e, err := TransactionExists(boil.GetDB(), transactionID)
 	if err != nil {
 		panic(boil.WrapErr(err))
 	}
@@ -1132,8 +1420,8 @@ func TransactionExistsGP(paymentID int) bool {
 }
 
 // TransactionExistsP checks if the Transaction row exists. Panics on error.
-func TransactionExistsP(exec boil.Executor, paymentID int) bool {
-	e, err := TransactionExists(exec, paymentID)
+func TransactionExistsP(exec boil.Executor, transactionID int) bool {
+	e, err := TransactionExists(exec, transactionID)
 	if err != nil {
 		panic(boil.WrapErr(err))
 	}

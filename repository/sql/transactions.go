@@ -4,13 +4,14 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/shopspring/decimal"
+	"gopkg.in/nullbio/null.v6"
+	"github.com/vattle/sqlboiler/queries/qm"
+	sqlerror "github.com/pkg/errors"
 
 	"github.com/marove2000/hack-and-pay/contract"
 	"github.com/marove2000/hack-and-pay/errors"
 	"github.com/marove2000/hack-and-pay/repository/sql/models"
-	"gopkg.in/nullbio/null.v6"
-	"github.com/vattle/sqlboiler/queries/qm"
+	"github.com/go-sql-driver/mysql"
 )
 
 func (m *Mysql) GetUsersWithBalance(ctx context.Context) ([]*contract.User, error) {
@@ -42,6 +43,18 @@ func (m *Mysql) AddTransaction(ctx context.Context, body contract.ChangeBalanceR
 	logger := pkgLogger.ForFunc(ctx, "AddTransaction")
 	logger.Debug("enter repository")
 
+	var sku null.Int
+	if body.SKU != 0 {
+		sku = null.IntFrom(body.SKU)
+	}
+
+	transaction := models.Transaction{
+		UserID: null.IntFrom(body.UserID),
+		SKUID:  sku,
+		Value:  body.Value.String(),
+		Tag:    null.StringFrom(body.Tag),
+	}
+
 	var err error
 	if body.SKU != 0 {
 		// check if SKU ID is existing
@@ -56,18 +69,33 @@ func (m *Mysql) AddTransaction(ctx context.Context, body contract.ChangeBalanceR
 			logger.Warn("failed to find product with sku ", body.SKU)
 			body.SKU = 0
 		}
-	}
 
-	transaction := models.Transaction{
-		UserID: body.UserID,
-		SKUID:  null.IntFrom(body.SKU),
-		Value:  decimal.NewFromFloat(body.Value).String(),
-		Tag:    null.StringFrom(body.Tag),
+		product, err := m.GetProductBySKU(ctx, body.SKU)
+		if err != nil {
+			return err
+		}
+		transaction.Value = product.Price.String()
+
 	}
 
 	err = transaction.Insert(m.db)
 
 	if err != nil {
+		sqlerr, ok := sqlerror.Cause(err).(*mysql.MySQLError)
+		if !ok {
+			logger.WithError(err).Error("failed to insert transaction")
+			return errors.InternalServerError("db error", err)
+		}
+
+		switch sqlerr.Number {
+		case 1452:
+			logger.WithField("sku", body.SKU).Warn("sku not found")
+			return errors.NotFound("sku not found")
+		default:
+			logger.WithError(err).Error("failed to insert transaction")
+			return errors.InternalServerError("db error", err)
+		}
+
 		logger.WithError(err).Error("failed to insert transaction")
 		return errors.InternalServerError("db error", err)
 	}

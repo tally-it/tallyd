@@ -397,7 +397,7 @@ func (userL) LoadTransactions(e boil.Executor, singular bool, maybeUser interfac
 
 	for _, foreign := range resultSlice {
 		for _, local := range slice {
-			if local.UserID == foreign.UserID {
+			if local.UserID == foreign.UserID.Int {
 				local.R.Transactions = append(local.R.Transactions, foreign)
 				break
 			}
@@ -732,7 +732,8 @@ func (o *User) AddTransactions(exec boil.Executor, insert bool, related ...*Tran
 	var err error
 	for _, rel := range related {
 		if insert {
-			rel.UserID = o.UserID
+			rel.UserID.Int = o.UserID
+			rel.UserID.Valid = true
 			if err = rel.Insert(exec); err != nil {
 				return errors.Wrap(err, "failed to insert into foreign table")
 			}
@@ -742,7 +743,7 @@ func (o *User) AddTransactions(exec boil.Executor, insert bool, related ...*Tran
 				strmangle.SetParamNames("`", "`", 0, []string{"user_id"}),
 				strmangle.WhereClause("`", "`", 0, transactionPrimaryKeyColumns),
 			)
-			values := []interface{}{o.UserID, rel.PaymentID}
+			values := []interface{}{o.UserID, rel.TransactionID}
 
 			if boil.DebugMode {
 				fmt.Fprintln(boil.DebugWriter, updateQuery)
@@ -753,7 +754,8 @@ func (o *User) AddTransactions(exec boil.Executor, insert bool, related ...*Tran
 				return errors.Wrap(err, "failed to update foreign table")
 			}
 
-			rel.UserID = o.UserID
+			rel.UserID.Int = o.UserID
+			rel.UserID.Valid = true
 		}
 	}
 
@@ -774,6 +776,141 @@ func (o *User) AddTransactions(exec boil.Executor, insert bool, related ...*Tran
 			rel.R.User = o
 		}
 	}
+	return nil
+}
+
+// SetTransactionsG removes all previously related items of the
+// user replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.User's Transactions accordingly.
+// Replaces o.R.Transactions with related.
+// Sets related.R.User's Transactions accordingly.
+// Uses the global database handle.
+func (o *User) SetTransactionsG(insert bool, related ...*Transaction) error {
+	return o.SetTransactions(boil.GetDB(), insert, related...)
+}
+
+// SetTransactionsP removes all previously related items of the
+// user replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.User's Transactions accordingly.
+// Replaces o.R.Transactions with related.
+// Sets related.R.User's Transactions accordingly.
+// Panics on error.
+func (o *User) SetTransactionsP(exec boil.Executor, insert bool, related ...*Transaction) {
+	if err := o.SetTransactions(exec, insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// SetTransactionsGP removes all previously related items of the
+// user replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.User's Transactions accordingly.
+// Replaces o.R.Transactions with related.
+// Sets related.R.User's Transactions accordingly.
+// Uses the global database handle and panics on error.
+func (o *User) SetTransactionsGP(insert bool, related ...*Transaction) {
+	if err := o.SetTransactions(boil.GetDB(), insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// SetTransactions removes all previously related items of the
+// user replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.User's Transactions accordingly.
+// Replaces o.R.Transactions with related.
+// Sets related.R.User's Transactions accordingly.
+func (o *User) SetTransactions(exec boil.Executor, insert bool, related ...*Transaction) error {
+	query := "update `transactions` set `user_id` = null where `user_id` = ?"
+	values := []interface{}{o.UserID}
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, query)
+		fmt.Fprintln(boil.DebugWriter, values)
+	}
+
+	_, err := exec.Exec(query, values...)
+	if err != nil {
+		return errors.Wrap(err, "failed to remove relationships before set")
+	}
+
+	if o.R != nil {
+		for _, rel := range o.R.Transactions {
+			rel.UserID.Valid = false
+			if rel.R == nil {
+				continue
+			}
+
+			rel.R.User = nil
+		}
+
+		o.R.Transactions = nil
+	}
+	return o.AddTransactions(exec, insert, related...)
+}
+
+// RemoveTransactionsG relationships from objects passed in.
+// Removes related items from R.Transactions (uses pointer comparison, removal does not keep order)
+// Sets related.R.User.
+// Uses the global database handle.
+func (o *User) RemoveTransactionsG(related ...*Transaction) error {
+	return o.RemoveTransactions(boil.GetDB(), related...)
+}
+
+// RemoveTransactionsP relationships from objects passed in.
+// Removes related items from R.Transactions (uses pointer comparison, removal does not keep order)
+// Sets related.R.User.
+// Panics on error.
+func (o *User) RemoveTransactionsP(exec boil.Executor, related ...*Transaction) {
+	if err := o.RemoveTransactions(exec, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// RemoveTransactionsGP relationships from objects passed in.
+// Removes related items from R.Transactions (uses pointer comparison, removal does not keep order)
+// Sets related.R.User.
+// Uses the global database handle and panics on error.
+func (o *User) RemoveTransactionsGP(related ...*Transaction) {
+	if err := o.RemoveTransactions(boil.GetDB(), related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// RemoveTransactions relationships from objects passed in.
+// Removes related items from R.Transactions (uses pointer comparison, removal does not keep order)
+// Sets related.R.User.
+func (o *User) RemoveTransactions(exec boil.Executor, related ...*Transaction) error {
+	var err error
+	for _, rel := range related {
+		rel.UserID.Valid = false
+		if rel.R != nil {
+			rel.R.User = nil
+		}
+		if err = rel.Update(exec, "user_id"); err != nil {
+			return err
+		}
+	}
+	if o.R == nil {
+		return nil
+	}
+
+	for _, rel := range related {
+		for i, ri := range o.R.Transactions {
+			if rel != ri {
+				continue
+			}
+
+			ln := len(o.R.Transactions)
+			if ln > 1 && i < ln-1 {
+				o.R.Transactions[i] = o.R.Transactions[ln-1]
+			}
+			o.R.Transactions = o.R.Transactions[:ln-1]
+			break
+		}
+	}
+
 	return nil
 }
 

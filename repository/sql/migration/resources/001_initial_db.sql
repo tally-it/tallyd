@@ -19,19 +19,32 @@ CREATE TABLE IF NOT EXISTS category_parent_map (
   ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4;
 
-CREATE TABLE IF NOT EXISTS transactions (
-  payment_id INT(11)        NOT NULL              AUTO_INCREMENT,
-  user_id    INT(11)        NOT NULL,
-  SKU_id     INT(11)        NULL,
-  value      DECIMAL(15, 2) NOT NULL,
-  tag        VARCHAR(255)                         DEFAULT NULL,
-  added_at   TIMESTAMP      NOT NULL              DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP      NULL                  DEFAULT NULL,
-  PRIMARY KEY (payment_id),
-  INDEX (user_id)
+CREATE TABLE transactions
+(
+  transaction_id INT AUTO_INCREMENT
+    PRIMARY KEY,
+  user_id        INT                                 NULL,
+  SKU_id         INT                                 NULL,
+  value          DECIMAL(15, 2)                      NOT NULL,
+  tag            VARCHAR(255)                        NULL,
+  added_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+  updated_at     TIMESTAMP                           NULL,
+  CONSTRAINT fk_transactions_users
+  FOREIGN KEY (user_id) REFERENCES users (user_id)
+    ON UPDATE CASCADE
+    ON DELETE SET NULL,
+  CONSTRAINT `transactions__product.SKU_id_fk`
+  FOREIGN KEY (SKU_id) REFERENCES products (SKU_id)
+    ON UPDATE CASCADE
 )
   ENGINE = InnoDB
-  DEFAULT CHARSET = utf8mb4;
+  CHARSET = utf8mb4;
+
+CREATE INDEX user_id
+  ON transactions (user_id);
+
+CREATE INDEX `transactions__product.SKU_id_fk`
+  ON transactions (SKU_id);
 
 CREATE TABLE products
 (

@@ -31,7 +31,7 @@ import (
 	"github.com/marove2000/hack-and-pay/router"
 )
 
-var pkgLogger = log.New("config")
+var pkgLogger = log.New("handler")
 
 type Handler struct {
 	repo       *sql.Mysql
