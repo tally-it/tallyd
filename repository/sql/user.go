@@ -16,7 +16,7 @@ import (
 	"github.com/marove2000/hack-and-pay/config"
 )
 
-func (m *Mysql) AddLocalUser(ctx context.Context, body *contract.AddUserRequestBody) (userID int, err error) {
+func (m *Mysql) AddLocalUser(ctx context.Context, name, email, password string) (userID int, err error) {
 	logger := pkgLogger.ForFunc(ctx, "AddLocalUser")
 	logger.Debug("enter repository")
 
@@ -29,9 +29,14 @@ func (m *Mysql) AddLocalUser(ctx context.Context, body *contract.AddUserRequestB
 		}
 	}()
 
+	var nullMail null.String
+	if email != "" {
+		nullMail = null.StringFrom(email)
+	}
+
 	usr := models.User{
-		Name:  body.Name,
-		Email: null.StringFrom(body.Email),
+		Name:  name,
+		Email: nullMail,
 	}
 
 	// add user
@@ -42,7 +47,7 @@ func (m *Mysql) AddLocalUser(ctx context.Context, body *contract.AddUserRequestB
 	}
 
 	// hash password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(body.Password), bcrypt.DefaultCost)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		logger.WithError(err).Error("failed to create password hash")
 		return 0, errors.InternalServerError("password hash error", err)
@@ -70,7 +75,7 @@ func (m *Mysql) AddLocalUser(ctx context.Context, body *contract.AddUserRequestB
 
 }
 
-func (m *Mysql) AddLDAPUser(ctx context.Context, body *contract.AddUserRequestBody) (userID int, err error) {
+func (m *Mysql) AddLDAPUser(ctx context.Context, name, email string) (userID int, err error) {
 	logger := pkgLogger.ForFunc(ctx, "AddLDAPUser")
 	logger.Debug("enter repository")
 
@@ -83,9 +88,14 @@ func (m *Mysql) AddLDAPUser(ctx context.Context, body *contract.AddUserRequestBo
 		}
 	}()
 
+	var nullMail null.String
+	if email != "" {
+		nullMail = null.StringFrom(email)
+	}
+
 	usr := models.User{
-		Name:  body.Name,
-		Email: null.StringFrom(body.Email),
+		Name:  name,
+		Email: nullMail,
 	}
 
 	// add user
