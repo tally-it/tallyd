@@ -4,21 +4,21 @@ import (
 	"context"
 	"database/sql"
 
-	"gopkg.in/nullbio/null.v6"
-	"github.com/vattle/sqlboiler/queries/qm"
-	sqlerror "github.com/pkg/errors"
-
 	"github.com/marove2000/hack-and-pay/contract"
 	"github.com/marove2000/hack-and-pay/errors"
 	"github.com/marove2000/hack-and-pay/repository/sql/models"
+
 	"github.com/go-sql-driver/mysql"
+	sqlerror "github.com/pkg/errors"
+	"github.com/vattle/sqlboiler/queries/qm"
+	"gopkg.in/nullbio/null.v6"
 )
 
 func (m *Mysql) GetUsersWithBalance(ctx context.Context) ([]*contract.User, error) {
 	logger := pkgLogger.ForFunc(ctx, "GetUsersWithBalance")
 	logger.Debug("enter repo")
 
-	users := []*contract.User{}
+	var users []*contract.User
 	err := m.db.Select(&users, `
 		SELECT users.user_id, 
 			users.email, 

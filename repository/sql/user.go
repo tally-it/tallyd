@@ -9,11 +9,8 @@ import (
 	"github.com/marove2000/hack-and-pay/repository/sql/models"
 
 	"github.com/vattle/sqlboiler/queries/qm"
-	"gopkg.in/nullbio/null.v6"
 	"golang.org/x/crypto/bcrypt"
-	"github.com/dgrijalva/jwt-go"
-	"fmt"
-	"github.com/marove2000/hack-and-pay/config"
+	"gopkg.in/nullbio/null.v6"
 )
 
 func (m *Mysql) AddLocalUser(ctx context.Context, name, email, password string) (userID int, err error) {
@@ -132,7 +129,7 @@ func (m *Mysql) GetPublicUserDataByUserID(ctx context.Context, userID int) (*con
 	user, err := models.Users(m.db, qm.Where("user_id=?", userID)).One()
 	if err != nil {
 		if err == sql.ErrNoRows {
-			logger.Warn("failed to find user")
+			logger.WithField("userID", userID).Warn("failed to find user")
 			return nil, errors.NotFound("user not found")
 		}
 
@@ -147,37 +144,6 @@ func (m *Mysql) GetPublicUserDataByUserID(ctx context.Context, userID int) (*con
 	}, nil
 }
 
-func (m *Mysql) CheckIsAdminJWT(ctx context.Context, JWT string, userID int) (error) {
-	logger := pkgLogger.ForFunc(ctx, "CheckJWT")
-	logger.Debug("enter repository")
-
-	// read config
-	conf := config.ReadConfig()
-
-	token, err := jwt.Parse(JWT, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			err := fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
-			return nil, err
-		}
-		return []byte(conf.JWT.Secret), nil
-	})
-
-	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-
-		if claims["userIsAdmin"].(bool) == true {
-			// user is admin
-			// TODO: Check Timeout
-			return nil
-		} else {
-			err := fmt.Errorf("user is no admin")
-			return err
-		}
-
-	} else {
-		return err
-	}
-}
-
 func (m *Mysql) GetPublicUserDataByUserName(ctx context.Context, name string) (*contract.User, error) {
 	logger := pkgLogger.ForFunc(ctx, "GetPublicUserDataByUserName")
 	logger.Debug("enter repository")
@@ -185,7 +151,7 @@ func (m *Mysql) GetPublicUserDataByUserName(ctx context.Context, name string) (*
 	user, err := models.Users(m.db, qm.Where("name=?", name)).One()
 	if err != nil {
 		if err == sql.ErrNoRows {
-			logger.Warn("failed to find user")
+			logger.WithField("name", name).Warn("failed to find user")
 			return nil, errors.NotFound("user not found")
 		}
 
@@ -202,7 +168,7 @@ func (m *Mysql) GetPublicUserDataByUserName(ctx context.Context, name string) (*
 
 func (m *Mysql) Login(ctx context.Context, name, pass string) error {
 	logger := pkgLogger.ForFunc(ctx, "Login")
-	logger.Debug("enter Login")
+	logger.Debug("enter repository")
 
 	// get user id by name
 	user, err := models.Users(m.db, qm.Where("name=?", name)).One()
