@@ -8,12 +8,6 @@
   version = "v0.3.0"
 
 [[projects]]
-  branch = "master"
-  name = "github.com/badoux/checkmail"
-  packages = ["."]
-  revision = "d0a759655d62bcdc95c50a0676f3e9702ed59453"
-
-[[projects]]
   name = "github.com/dgrijalva/jwt-go"
   packages = ["."]
   revision = "dbeaa9332f19a944acb5736b4456cfcc02140e29"
@@ -38,21 +32,13 @@
   revision = "460c83432a98c35224a6fe352acf8b23e067ad06"
 
 [[projects]]
-  name = "github.com/gorilla/context"
-  packages = ["."]
-  revision = "1ea25387ff6f684839d82767c1733ff4d4d15d0a"
-  version = "v1.1"
-
-[[projects]]
-  name = "github.com/gorilla/mux"
-  packages = ["."]
-  revision = "7f08801859139f86dfafd1c296e2cba9a80d292e"
-  version = "v1.6.0"
-
-[[projects]]
   branch = "master"
   name = "github.com/jmoiron/sqlx"
-  packages = [".","reflectx","types"]
+  packages = [
+    ".",
+    "reflectx",
+    "types"
+  ]
   revision = "de8647470aafe4854c976707c431dbe1eb2822c6"
 
 [[projects]]
@@ -94,8 +80,17 @@
 [[projects]]
   branch = "master"
   name = "github.com/rubenv/sql-migrate"
-  packages = [".","sqlparse"]
+  packages = [
+    ".",
+    "sqlparse"
+  ]
   revision = "6edbfbd6a369ee82463312ec67b2c92f97a1d4dc"
+
+[[projects]]
+  name = "github.com/shopspring/decimal"
+  packages = ["."]
+  revision = "9ca7f51822d222ae4e246f070f9aad863599bd1a"
+  version = "1.0.0"
 
 [[projects]]
   name = "github.com/sirupsen/logrus"
@@ -105,7 +100,12 @@
 
 [[projects]]
   name = "github.com/vattle/sqlboiler"
-  packages = ["boil","queries","queries/qm","strmangle"]
+  packages = [
+    "boil",
+    "queries",
+    "queries/qm",
+    "strmangle"
+  ]
   revision = "82e14d2e1acb4e1b6ef2193858820f9bff6f187c"
   version = "v2.5.0"
 
@@ -118,13 +118,20 @@
 [[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
-  packages = ["bcrypt","blowfish","ssh/terminal"]
+  packages = [
+    "bcrypt",
+    "blowfish",
+    "ssh/terminal"
+  ]
   revision = "b3c9a1d25cfbbbab0ff4780b71c4f54e6e92a0de"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
-  packages = ["unix","windows"]
+  packages = [
+    "unix",
+    "windows"
+  ]
   revision = "810d7000345868fc619eb81f46307107118f4ae1"
 
 [[projects]]
@@ -147,13 +154,16 @@
 
 [[projects]]
   name = "gopkg.in/nullbio/null.v6"
-  packages = [".","convert"]
+  packages = [
+    ".",
+    "convert"
+  ]
   revision = "40264a2e6b7972d183906cf17663983c23231c82"
   version = "v6.3"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "16861db2a61a1a8524db640b8333ac57fb07fbcef573be08dcebfa19b65a5cd8"
+  inputs-digest = "7ef2452ba51dc9dde006037e249fe4acb0fa7fd0c05076d6dfeb9756e23b1925"
   solver-name = "gps-cdcl"
   solver-version = 1
