@@ -3,22 +3,23 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/marove2000/hack-and-pay/errors"
 
+	"github.com/dgrijalva/jwt-go"
 	mux "github.com/dimfeld/httptreemux"
 	"github.com/marove2000/hack-and-pay/ctxutil"
 	"github.com/pborman/uuid"
-	"strings"
-	"github.com/dgrijalva/jwt-go"
-	"fmt"
 )
 
 type authType int
 
 const (
-	authTypeAll      authType = iota
+	authTypeNone authType = iota
+	authTypeAll
 	authTypePassword
 	authTypePin
 )
@@ -44,13 +45,17 @@ func (a *JWTAuthorizer) Authorize(fn superFunc, authType authType) superFunc {
 		if len(bearerToken) == 2 {
 			JWT = bearerToken[1]
 		} else {
-			logger.Error("failed to read JWT token from header")
+			if authType == authTypeNone {
+				return fn(ctx, r, pathParams)
+			}
+
+			logger.Error("failed to read JWT token from header, maybe it's missing?")
 			return nil, errors.Unauthenticated()
 		}
 
 		token, err := jwt.Parse(JWT, func(token *jwt.Token) (interface{}, error) {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				err := fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+				err := fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 				return nil, err
 			}
 			return []byte(a.Secret), nil
@@ -88,7 +93,6 @@ func (a *JWTAuthorizer) Authorize(fn superFunc, authType authType) superFunc {
 			logger.WithError(err).Error("failed to extract user is blocked status")
 			return nil, errors.InternalServerError("something went wrong", nil)
 		}
-
 
 		return fn(ctx, r, pathParams)
 	}
