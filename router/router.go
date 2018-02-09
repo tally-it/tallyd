@@ -28,7 +28,7 @@ func NewRouter(h Handler) *mux.TreeMux {
 		case http.MethodPost:
 			router.POST(r.Pattern, r.HandlerFunc)
 		default:
-			panic("unsupportet http method")
+			panic("unsupported http method")
 		}
 	}
 
