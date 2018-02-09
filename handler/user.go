@@ -126,7 +126,6 @@ func (h *Handler) addTransaction(ctx context.Context, r *http.Request, pathParam
 		return nil, errors.BadRequest(err.Error())
 	}
 
-	logger.Info(transaction.Value)
 	switch {
 	case transaction.SKU != 0 && transaction.Value.Cmp(decimal.Zero) != 0:
 		logger.Warn("both SKU and value are set")

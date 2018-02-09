@@ -3,17 +3,19 @@ package sql
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"github.com/marove2000/hack-and-pay/contract"
 	"github.com/marove2000/hack-and-pay/errors"
 	"github.com/marove2000/hack-and-pay/repository/sql/models"
 
+	sqlerror "github.com/pkg/errors"
 	"github.com/vattle/sqlboiler/queries/qm"
 	"gopkg.in/nullbio/null.v6"
 	"golang.org/x/crypto/bcrypt"
 	"github.com/dgrijalva/jwt-go"
-	"fmt"
 	"github.com/marove2000/hack-and-pay/config"
+	"github.com/go-sql-driver/mysql"
 )
 
 func (m *Mysql) AddLocalUser(ctx context.Context, body *contract.AddUserRequestBody) (userID int, err error) {
@@ -37,8 +39,21 @@ func (m *Mysql) AddLocalUser(ctx context.Context, body *contract.AddUserRequestB
 	// add user
 	err = usr.Insert(tx, models.UserColumns.Name, models.UserColumns.Email)
 	if err != nil {
-		logger.WithError(err).Error("failed to insert user")
-		return 0, errors.InternalServerError("db error", err)
+		sqlerr, ok := sqlerror.Cause(err).(*mysql.MySQLError)
+		if !ok {
+			logger.WithError(err).Error("failed to insert transaction")
+			return 0, errors.InternalServerError("db error", err)
+		}
+
+		switch sqlerr.Number {
+		case 1062:
+			logger.WithField("username", body.Name).Warn("duplicate entry for username")
+			return 0, errors.BadRequest("bad request")
+		default:
+			logger.WithError(err).Error("failed to insert transaction")
+			return 0, errors.InternalServerError("db error", err)
+		}
+
 	}
 
 	// hash password

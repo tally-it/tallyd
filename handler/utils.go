@@ -56,12 +56,12 @@ func (a *JWTAuthorizer) Authorize(fn superFunc, authType authType) superFunc {
 			return []byte(a.Secret), nil
 		})
 		if err != nil {
-			logger.WithError(err).Error("failed to parse JWT")
+			logger.WithError(err).Warn("failed to parse JWT")
 			return nil, errors.Unauthorized()
 		}
 
 		if !token.Valid {
-			logger.WithError(err).Error("token is invalid")
+			logger.WithError(err).Warn("token is invalid")
 			return nil, errors.Unauthorized()
 		}
 
