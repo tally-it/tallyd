@@ -29,6 +29,7 @@ func TestSimple(t *testing.T) {
 
 	user := userGetById(t, token, uid)
 	require.Zero(t, user.Balance.Cmp(decimal.Zero))
+	require.False(t, bool(user.IsAdmin))
 
 	transactionAdd(t, token, uid, 15.33)
 

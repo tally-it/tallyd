@@ -1,5 +1,9 @@
 package sql
 
-func tinyToBool(i int8) bool {
-	return i != 0
+func boolToString(b bool) string {
+	if b {
+		return string([]byte{1})
+	}
+
+	return string([]byte{0})
 }

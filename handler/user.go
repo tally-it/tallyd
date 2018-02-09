@@ -45,7 +45,7 @@ func (h *Handler) getUserDetail(ctx context.Context, r *http.Request, pathParams
 	var user *contract.User
 	if id == ctxutil.GetUserID(ctx) || ctxutil.GetAdminStatus(ctx) {
 		user, err = h.repo.GetUserWithBalance(ctx, id)
-	}else{
+	} else {
 		user, err = h.repo.GetPublicUserDataByUserID(ctx, id)
 	}
 	if err != nil {
@@ -87,14 +87,14 @@ func (h *Handler) signUp(ctx context.Context, r *http.Request, pathParams map[st
 		}
 
 		// login correct, create user in DB
-		id, err = h.repo.AddLDAPUser(ctx, user.Name, user.Email)
+		id, err = h.repo.AddLDAPUser(ctx, user.Name, user.Email, false)
 		if err != nil {
 			return nil, err
 		}
 
 	default:
 		// ldap not active create user account
-		id, err = h.repo.AddLocalUser(ctx, user.Name, user.Email, user.Password)
+		id, err = h.repo.AddLocalUser(ctx, user.Name, user.Email, user.Password, false)
 		if err != nil {
 			return nil, err
 		}

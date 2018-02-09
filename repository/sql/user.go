@@ -13,11 +13,12 @@ import (
 	sqlerror "github.com/pkg/errors"
 	"github.com/shopspring/decimal"
 	"github.com/vattle/sqlboiler/queries/qm"
+	"github.com/volatiletech/sqlboiler/boil"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/nullbio/null.v6"
 )
 
-func (m *Mysql) AddLocalUser(ctx context.Context, name, email, password string) (userID int, err error) {
+func (m *Mysql) AddLocalUser(ctx context.Context, name, email, password string, isAdmin bool) (userID int, err error) {
 	logger := pkgLogger.ForFunc(ctx, "AddLocalUser")
 	logger.Debug("enter repository")
 
@@ -30,34 +31,9 @@ func (m *Mysql) AddLocalUser(ctx context.Context, name, email, password string) 
 		}
 	}()
 
-	var nullMail null.String
-	if email != "" {
-		nullMail = null.StringFrom(email)
-	}
-
-	usr := models.User{
-		Name:  name,
-		Email: nullMail,
-	}
-
-	// add user
-	err = usr.Insert(tx, models.UserColumns.Name, models.UserColumns.Email)
+	userID, err = insertUser(ctx, tx, name, email, isAdmin)
 	if err != nil {
-		sqlerr, ok := sqlerror.Cause(err).(*mysql.MySQLError)
-		if !ok {
-			logger.WithError(err).Error("failed to insert user")
-			return 0, errors.InternalServerError("db error", err)
-		}
-
-		switch sqlerr.Number {
-		case 1062:
-			logger.WithField("username", name).Warn("duplicate entry for username")
-			return 0, errors.BadRequest("bad request")
-		default:
-			logger.WithError(err).Error("failed to insert transaction")
-			return 0, errors.InternalServerError("db error", err)
-		}
-
+		return 0, err
 	}
 
 	// hash password
@@ -69,7 +45,7 @@ func (m *Mysql) AddLocalUser(ctx context.Context, name, email, password string) 
 
 	auth := models.UserAuth{
 		Method: string(contract.AuthTypePasswd),
-		UserID: usr.UserID,
+		UserID: userID,
 		Value:  null.Bytes{Bytes: hashedPassword, Valid: true},
 	}
 
@@ -85,11 +61,10 @@ func (m *Mysql) AddLocalUser(ctx context.Context, name, email, password string) 
 		return 0, errors.InternalServerError("db error", err)
 	}
 
-	return usr.UserID, err
-
+	return userID, err
 }
 
-func (m *Mysql) AddLDAPUser(ctx context.Context, name, email string) (userID int, err error) {
+func (m *Mysql) AddLDAPUser(ctx context.Context, name, email string, isAdmin bool) (userID int, err error) {
 	logger := pkgLogger.ForFunc(ctx, "AddLDAPUser")
 	logger.Debug("enter repository")
 
@@ -102,26 +77,14 @@ func (m *Mysql) AddLDAPUser(ctx context.Context, name, email string) (userID int
 		}
 	}()
 
-	var nullMail null.String
-	if email != "" {
-		nullMail = null.StringFrom(email)
-	}
-
-	usr := models.User{
-		Name:  name,
-		Email: nullMail,
-	}
-
-	// add user
-	err = usr.Insert(tx, models.UserColumns.Name, models.UserColumns.Email)
+	userID, err = insertUser(ctx, tx, name, email, isAdmin)
 	if err != nil {
-		logger.WithError(err).Error("failed to insert user")
-		return 0, errors.InternalServerError("db error", err)
+		return 0, err
 	}
 
 	auth := models.UserAuth{
 		Method: string(contract.AuthTypeLDAP),
-		UserID: usr.UserID,
+		UserID: userID,
 	}
 
 	err = auth.Insert(tx, models.UserAuthColumns.UserID, models.UserAuthColumns.Method)
@@ -136,7 +99,44 @@ func (m *Mysql) AddLDAPUser(ctx context.Context, name, email string) (userID int
 		return 0, errors.InternalServerError("db error", err)
 	}
 
-	return usr.UserID, err
+	return userID, err
+}
+
+func insertUser(ctx context.Context, db boil.Executor, name, email string, isAdmin bool) (int, error) {
+	logger := pkgLogger.ForFunc(ctx, "insertUser")
+	logger.Debug("enter repository")
+
+	var nullMail null.String
+	if email != "" {
+		nullMail = null.StringFrom(email)
+	}
+
+	usr := models.User{
+		Name:    name,
+		Email:   nullMail,
+		IsAdmin: boolToString(isAdmin),
+	}
+
+	// add user
+	err := usr.Insert(db, models.UserColumns.Name, models.UserColumns.Email, models.UserColumns.IsAdmin)
+	if err != nil {
+		sqlerr, ok := sqlerror.Cause(err).(*mysql.MySQLError)
+		if !ok {
+			logger.WithError(err).Error("failed to insert user")
+			return 0, errors.InternalServerError("db error", err)
+		}
+
+		switch sqlerr.Number {
+		case 1062:
+			logger.WithField("username", name).Warn("duplicate entry for username")
+			return 0, errors.BadRequest("bad request")
+		default:
+			logger.WithError(err).Error("failed to insert transaction")
+			return 0, errors.InternalServerError("db error", err)
+		}
+	}
+
+	return usr.UserID, nil
 }
 
 func (m *Mysql) GetPublicUserDataByUserID(ctx context.Context, userID int) (*contract.User, error) {

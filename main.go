@@ -79,7 +79,7 @@ func bootstrap(db *sql.Mysql, conf *config.Bootstrap) error {
 
 	logger.Info("user database empty, adding bootstrap user")
 
-	_, err = db.AddLocalUser(context.Background(), conf.User, "", conf.Password)
+	_, err = db.AddLocalUser(context.Background(), conf.User, "", conf.Password, true)
 	if err != nil {
 		return err
 	}
