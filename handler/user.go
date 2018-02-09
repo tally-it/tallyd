@@ -202,5 +202,8 @@ func (h *Handler) login(ctx context.Context, r *http.Request, pathParams map[str
 		return nil, err
 	}
 
-	return tokenString, nil
+	return &contract.LoginResponse{
+		JWT:    tokenString,
+		UserID: u.UserID,
+	}, nil
 }

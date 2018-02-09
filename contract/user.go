@@ -34,6 +34,11 @@ type LoginRequestBody struct {
 	Password string `json:"password" validate:"nonzero"`
 }
 
+type LoginResponse struct {
+	UserID int    `json:"userID"`
+	JWT    string `json:"jwt"`
+}
+
 type AddUserResponseBody struct {
 	UserID int `json:"userID"`
 }
