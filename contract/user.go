@@ -1,18 +1,21 @@
 package contract
 
-import "github.com/jmoiron/sqlx/types"
+import (
+	"github.com/jmoiron/sqlx/types"
+	"github.com/shopspring/decimal"
+)
 
 // swagger:model
 type UserSlice []User
 
 // swagger:model
 type User struct {
-	UserID    int           `json:"userID" db:"user_id"`
-	Name      string        `json:"name" db:"name"`
-	Email     string        `json:"email" db:"email"`
-	IsBlocked types.BitBool `json:"isBlocked" db:"is_blocked"`
-	IsAdmin   types.BitBool `json:"isAdmin" db:"is_admin"`
-	Balance   float64       `json:"balance" db:"balance"`
+	UserID    int             `json:"userID" db:"user_id"`
+	Name      string          `json:"name" db:"name"`
+	Email     string          `json:"email" db:"email"`
+	IsBlocked types.BitBool   `json:"isBlocked" db:"is_blocked"`
+	IsAdmin   types.BitBool   `json:"isAdmin" db:"is_admin"`
+	Balance   decimal.Decimal `json:"balance" db:"balance"`
 }
 
 // swagger:model

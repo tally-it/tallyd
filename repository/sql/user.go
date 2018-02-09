@@ -3,7 +3,6 @@ package sql
 import (
 	"context"
 	"database/sql"
-	"fmt"
 
 	"github.com/marove2000/hack-and-pay/contract"
 	"github.com/marove2000/hack-and-pay/errors"
@@ -11,14 +10,12 @@ import (
 
 	sqlerror "github.com/pkg/errors"
 	"github.com/vattle/sqlboiler/queries/qm"
-	"gopkg.in/nullbio/null.v6"
 	"golang.org/x/crypto/bcrypt"
-	"github.com/dgrijalva/jwt-go"
-	"github.com/marove2000/hack-and-pay/config"
+	"gopkg.in/nullbio/null.v6"
 	"github.com/go-sql-driver/mysql"
 )
 
-func (m *Mysql) AddLocalUser(ctx context.Context, body *contract.AddUserRequestBody) (userID int, err error) {
+func (m *Mysql) AddLocalUser(ctx context.Context, name, email, password string) (userID int, err error) {
 	logger := pkgLogger.ForFunc(ctx, "AddLocalUser")
 	logger.Debug("enter repository")
 
@@ -31,9 +28,14 @@ func (m *Mysql) AddLocalUser(ctx context.Context, body *contract.AddUserRequestB
 		}
 	}()
 
+	var nullMail null.String
+	if email != "" {
+		nullMail = null.StringFrom(email)
+	}
+
 	usr := models.User{
-		Name:  body.Name,
-		Email: null.StringFrom(body.Email),
+		Name:  name,
+		Email: nullMail,
 	}
 
 	// add user
@@ -41,13 +43,13 @@ func (m *Mysql) AddLocalUser(ctx context.Context, body *contract.AddUserRequestB
 	if err != nil {
 		sqlerr, ok := sqlerror.Cause(err).(*mysql.MySQLError)
 		if !ok {
-			logger.WithError(err).Error("failed to insert transaction")
+			logger.WithError(err).Error("failed to insert user")
 			return 0, errors.InternalServerError("db error", err)
 		}
 
 		switch sqlerr.Number {
 		case 1062:
-			logger.WithField("username", body.Name).Warn("duplicate entry for username")
+			logger.WithField("username", name).Warn("duplicate entry for username")
 			return 0, errors.BadRequest("bad request")
 		default:
 			logger.WithError(err).Error("failed to insert transaction")
@@ -57,7 +59,7 @@ func (m *Mysql) AddLocalUser(ctx context.Context, body *contract.AddUserRequestB
 	}
 
 	// hash password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(body.Password), bcrypt.DefaultCost)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		logger.WithError(err).Error("failed to create password hash")
 		return 0, errors.InternalServerError("password hash error", err)
@@ -85,7 +87,7 @@ func (m *Mysql) AddLocalUser(ctx context.Context, body *contract.AddUserRequestB
 
 }
 
-func (m *Mysql) AddLDAPUser(ctx context.Context, body *contract.AddUserRequestBody) (userID int, err error) {
+func (m *Mysql) AddLDAPUser(ctx context.Context, name, email string) (userID int, err error) {
 	logger := pkgLogger.ForFunc(ctx, "AddLDAPUser")
 	logger.Debug("enter repository")
 
@@ -98,9 +100,14 @@ func (m *Mysql) AddLDAPUser(ctx context.Context, body *contract.AddUserRequestBo
 		}
 	}()
 
+	var nullMail null.String
+	if email != "" {
+		nullMail = null.StringFrom(email)
+	}
+
 	usr := models.User{
-		Name:  body.Name,
-		Email: null.StringFrom(body.Email),
+		Name:  name,
+		Email: nullMail,
 	}
 
 	// add user
@@ -152,37 +159,6 @@ func (m *Mysql) GetPublicUserDataByUserID(ctx context.Context, userID int) (*con
 	}, nil
 }
 
-func (m *Mysql) CheckIsAdminJWT(ctx context.Context, JWT string, userID int) (error) {
-	logger := pkgLogger.ForFunc(ctx, "CheckJWT")
-	logger.Debug("enter repository")
-
-	// read config
-	conf := config.ReadConfig()
-
-	token, err := jwt.Parse(JWT, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			err := fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
-			return nil, err
-		}
-		return []byte(conf.JWT.Secret), nil
-	})
-
-	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-
-		if claims["userIsAdmin"].(bool) == true {
-			// user is admin
-			// TODO: Check Timeout
-			return nil
-		} else {
-			err := fmt.Errorf("user is no admin")
-			return err
-		}
-
-	} else {
-		return err
-	}
-}
-
 func (m *Mysql) GetPublicUserDataByUserName(ctx context.Context, name string) (*contract.User, error) {
 	logger := pkgLogger.ForFunc(ctx, "GetPublicUserDataByUserName")
 	logger.Debug("enter repository")
@@ -190,7 +166,7 @@ func (m *Mysql) GetPublicUserDataByUserName(ctx context.Context, name string) (*
 	user, err := models.Users(m.db, qm.Where("name=?", name)).One()
 	if err != nil {
 		if err == sql.ErrNoRows {
-			logger.Warn("failed to find user")
+			logger.WithField("name", name).Warn("failed to find user")
 			return nil, errors.NotFound("user not found")
 		}
 
@@ -205,9 +181,22 @@ func (m *Mysql) GetPublicUserDataByUserName(ctx context.Context, name string) (*
 	}, nil
 }
 
+func (m *Mysql) GetUserCount(ctx context.Context) (int64, error) {
+	logger := pkgLogger.ForFunc(ctx, "GetUserCount")
+	logger.Debug("enter repository")
+
+	userCount, err := models.Users(m.db).Count()
+	if err != nil {
+		logger.WithError(err).Error("failed to count users")
+		return 0, errors.InternalServerError("db error", err)
+	}
+
+	return userCount, nil
+}
+
 func (m *Mysql) Login(ctx context.Context, name, pass string) error {
 	logger := pkgLogger.ForFunc(ctx, "Login")
-	logger.Debug("enter Login")
+	logger.Debug("enter repository")
 
 	// get user id by name
 	user, err := models.Users(m.db, qm.Where("name=?", name)).One()

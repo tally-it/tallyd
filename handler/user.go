@@ -4,16 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"time"
 	"strconv"
+	"time"
 
-	"github.com/marove2000/hack-and-pay/contract"
-	"github.com/marove2000/hack-and-pay/errors"
 	"github.com/marove2000/hack-and-pay/config"
+	"github.com/marove2000/hack-and-pay/contract"
 	"github.com/marove2000/hack-and-pay/ctxutil"
+	"github.com/marove2000/hack-and-pay/errors"
 
-	"github.com/go-validator/validator"
 	"github.com/dgrijalva/jwt-go"
+	"github.com/go-validator/validator"
 	"github.com/shopspring/decimal"
 )
 
@@ -84,18 +84,19 @@ func (h *Handler) signUp(ctx context.Context, r *http.Request, pathParams map[st
 		}
 
 		// login correct, create user in DB
-		id, err = h.repo.AddLDAPUser(ctx, user)
+		id, err = h.repo.AddLDAPUser(ctx, user.Name, user.Email)
 		if err != nil {
 			return nil, err
 		}
 
 	default:
 		// ldap not active create user account
-		id, err = h.repo.AddLocalUser(ctx, user)
+		id, err = h.repo.AddLocalUser(ctx, user.Name, user.Email, user.Password)
 		if err != nil {
 			return nil, err
 		}
 	}
+
 	return &contract.AddUserResponseBody{UserID: id}, err
 }
 
@@ -137,7 +138,7 @@ func (h *Handler) addTransaction(ctx context.Context, r *http.Request, pathParam
 
 	if (id == ctxutil.GetUserID(ctx) && id == transaction.UserID) || ctxutil.GetAdminStatus(ctx) {
 		// add data
-		err = h.repo.AddTransaction(ctx, *transaction)
+		err = h.repo.AddTransaction(ctx, transaction)
 		if err != nil {
 			return nil, err
 		}
