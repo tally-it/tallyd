@@ -42,11 +42,14 @@ func (h *Handler) getUserDetail(ctx context.Context, r *http.Request, pathParams
 		return nil, errors.BadRequest(err.Error())
 	}
 
-	// get all user data
-	user, err := h.repo.GetPublicUserDataByUserID(ctx, id)
+	var user *contract.User
+	if id == ctxutil.GetUserID(ctx) || ctxutil.GetAdminStatus(ctx) {
+		user, err = h.repo.GetUserWithBalance(ctx, id)
+	}else{
+		user, err = h.repo.GetPublicUserDataByUserID(ctx, id)
+	}
 	if err != nil {
-		logger.WithError(err).Error("failed to get user data")
-		return nil, errors.BadRequest(err.Error())
+		return nil, err
 	}
 
 	return user, nil
