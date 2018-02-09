@@ -7,11 +7,11 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/marove2000/hack-and-pay/ctxutil"
 	"github.com/marove2000/hack-and-pay/errors"
 
 	"github.com/dgrijalva/jwt-go"
 	mux "github.com/dimfeld/httptreemux"
-	"github.com/marove2000/hack-and-pay/ctxutil"
 	"github.com/pborman/uuid"
 )
 
@@ -19,61 +19,29 @@ type authType int
 
 const (
 	authTypeNone authType = iota
-	authTypeAll
-	authTypePassword
 	authTypePin
+	authTypePassword
+	authTypeAll
 )
 
-type superFunc func(ctx context.Context, r *http.Request, pathParams map[string]string) (interface{}, error)
+type handlerFunc func(ctx context.Context, r *http.Request, pathParams map[string]string) (interface{}, error)
 
 type authorizer interface {
-	Authorize(fn superFunc, authType authType) superFunc
+	Authorize(fn handlerFunc, authType authType) handlerFunc
 }
 
 type JWTAuthorizer struct {
 	Secret string
 }
 
-func (a *JWTAuthorizer) Authorize(fn superFunc, authType authType) superFunc {
+func (a *JWTAuthorizer) Authorize(fn handlerFunc, authType authType) handlerFunc {
 	return func(ctx context.Context, r *http.Request, pathParams map[string]string) (interface{}, error) {
-		logger := pkgLogger.ForFunc(ctx, "authorize")
-		logger.Debug("enter authorize wrapper")
+		logger := pkgLogger.ForFunc(ctx, "Authorize")
+		logger.Debug("enter wrapper")
 
-		// read JWT
-		var JWT string
-		bearerToken := strings.Split(r.Header.Get("authorization"), " ")
-		if len(bearerToken) == 2 {
-			JWT = bearerToken[1]
-		} else {
-			if authType == authTypeNone {
-				return fn(ctx, r, pathParams)
-			}
-
-			logger.Error("failed to read JWT token from header, maybe it's missing?")
-			return nil, errors.Unauthenticated()
-		}
-
-		token, err := jwt.Parse(JWT, func(token *jwt.Token) (interface{}, error) {
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				err := fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-				return nil, err
-			}
-			return []byte(a.Secret), nil
-		})
+		claims, err := a.extractAndValidateJWT(ctx, authType, r.Header)
 		if err != nil {
-			logger.WithError(err).Warn("failed to parse JWT")
-			return nil, errors.Unauthorized()
-		}
-
-		if !token.Valid {
-			logger.WithError(err).Warn("token is invalid")
-			return nil, errors.Unauthorized()
-		}
-
-		claims, ok := token.Claims.(jwt.MapClaims)
-		if !ok {
-			logger.Error("type assertion failed")
-			return nil, errors.InternalServerError("something went wrong", nil)
+			return nil, err
 		}
 
 		ctx, err = extractAdminStatus(ctx, claims)
@@ -98,7 +66,7 @@ func (a *JWTAuthorizer) Authorize(fn superFunc, authType authType) superFunc {
 	}
 }
 
-func wrap(fn superFunc) mux.HandlerFunc {
+func wrap(fn handlerFunc) mux.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request, params map[string]string) {
 		defer r.Body.Close()
 
@@ -133,7 +101,54 @@ func wrap(fn superFunc) mux.HandlerFunc {
 	}
 }
 
+func (a *JWTAuthorizer) extractAndValidateJWT(ctx context.Context, authType authType, header http.Header) (jwt.MapClaims, error) {
+	logger := pkgLogger.ForFunc(ctx, "extractAndValidateJWT")
+	logger.Debug("enter wrapper")
+
+	var JWT string
+	bearerToken := strings.Split(header.Get("authorization"), " ")
+	if len(bearerToken) != 2 {
+		if authType == authTypeNone {
+			return nil, nil
+		}
+
+		logger.Error("failed to read JWT token from header, maybe it's missing?")
+		return nil, errors.Unauthenticated()
+	}
+
+	JWT = bearerToken[1]
+
+	token, err := jwt.Parse(JWT, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			err := fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			return nil, err
+		}
+		return []byte(a.Secret), nil
+	})
+	if err != nil {
+		logger.WithError(err).Warn("failed to parse JWT")
+		return nil, errors.Unauthorized()
+	}
+
+	if !token.Valid {
+		logger.WithError(err).Warn("token is invalid")
+		return nil, errors.Unauthorized()
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		logger.Error("type assertion failed")
+		return nil, errors.InternalServerError("something went wrong", nil)
+	}
+
+	return claims, nil
+}
+
 func extractAdminStatus(ctx context.Context, claims jwt.MapClaims) (context.Context, error) {
+	if claims == nil {
+		return ctx, nil
+	}
+
 	isAdminInterface, ok := claims["isAdmin"]
 	if !ok {
 		return nil, fmt.Errorf("failed to find claim")
@@ -146,6 +161,10 @@ func extractAdminStatus(ctx context.Context, claims jwt.MapClaims) (context.Cont
 }
 
 func extractUserID(ctx context.Context, claims jwt.MapClaims) (context.Context, error) {
+	if claims == nil {
+		return ctx, nil
+	}
+
 	userIDInterface, ok := claims["userID"]
 	if !ok {
 		return nil, fmt.Errorf("failed to find claim")
@@ -159,6 +178,10 @@ func extractUserID(ctx context.Context, claims jwt.MapClaims) (context.Context, 
 }
 
 func extractIsBlockedStatus(ctx context.Context, claims jwt.MapClaims) (context.Context, error) {
+	if claims == nil {
+		return ctx, nil
+	}
+
 	isBlockedInterface, ok := claims["isBlocked"]
 	if !ok {
 		return nil, fmt.Errorf("failed to find claim")
