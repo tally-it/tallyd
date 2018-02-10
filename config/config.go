@@ -27,12 +27,14 @@ type Bootstrap struct {
 }
 
 type LDAP struct {
-	Active   bool
-	Protocol string `validate:"nonzero"`
-	Port     int    `validate:"nonzero"`
-	Host     string `validate:"nonzero"`
-	UseSSL   bool
-	Bind     string `validate:"nonzero"`
+	Active             bool
+	Protocol           string `validate:"nonzero"`
+	Port               int    `validate:"nonzero"`
+	Host               string `validate:"nonzero"`
+	UseSSL             bool
+	Bind               string `validate:"nonzero"`
+	CAFilePath         string
+	SkipInsecureVerify bool
 }
 
 type JWT struct {

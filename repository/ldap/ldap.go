@@ -10,6 +10,8 @@ import (
 	"github.com/marove2000/hack-and-pay/log"
 
 	"gopkg.in/ldap.v2"
+	"crypto/x509"
+	"io/ioutil"
 )
 
 var pkgLogger = log.New("sql")
@@ -23,12 +25,21 @@ func New(conf *config.LDAP) (*LDAP, error) {
 	logger := pkgLogger.ForFunc(context.Background(), "New")
 	logger.Debug("enter LDAP")
 
-	if conf == nil || conf.Active {
+	if conf == nil || !conf.Active {
 		return &LDAP{}, nil
 	}
 
-	// TODO Check Certificate
-	tlsConfig := &tls.Config{InsecureSkipVerify: true}
+	// read certificate
+	cert, err := ioutil.ReadFile(conf.CAFilePath)
+	if err != nil {
+		logger.WithError(err).WithField("path", conf.CAFilePath).Error("failed to read LDAP CA file")
+		return nil, errors.InternalServerError("failed to connect to LDAP", err)
+	}
+
+	// insert certificate to pool
+	certPool := x509.NewCertPool()
+	certPool.AppendCertsFromPEM(cert)
+	tlsConfig := &tls.Config{InsecureSkipVerify: conf.SkipInsecureVerify, RootCAs:certPool, ServerName: conf.Host}
 
 	// Connect to LDAP
 	ldap, err := ldap.DialTLS(conf.Protocol, conf.Host+":"+strconv.Itoa(conf.Port), tlsConfig)
