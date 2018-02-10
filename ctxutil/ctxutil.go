@@ -7,7 +7,20 @@ import (
 type correlationIdKey struct{}
 type adminKey struct{}
 type userIDKey struct{}
-type userIsBlockedKey struct {}
+type userIsBlockedKey struct{}
+type authTypeKey struct{}
+
+func InjectAuthType(ctx context.Context, authType string) context.Context {
+	return context.WithValue(ctx, authTypeKey{}, authType)
+}
+
+func GetAuthType(ctx context.Context) string {
+	authType := ctx.Value(authTypeKey{})
+	if authType != nil {
+		return authType.(string)
+	}
+	return ""
+}
 
 func InjectAdminStatus(ctx context.Context, isAdmin bool) context.Context {
 	return context.WithValue(ctx, adminKey{}, isAdmin)
@@ -32,7 +45,6 @@ func GetUserID(ctx context.Context) int {
 	}
 	return 0
 }
-
 
 func InjectUserIsBlocked(ctx context.Context, isBlocked bool) context.Context {
 	return context.WithValue(ctx, userIsBlockedKey{}, isBlocked)

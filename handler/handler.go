@@ -160,5 +160,11 @@ func (h *Handler) Routes() []*router.Route {
 			"/v1/user/:id/transaction",
 			wrap(h.authorizer.Authorize(h.addTransaction, authTypeAll)),
 		},
+		{
+			"UpdateUser",
+			"PUT",
+			"/v1/user/:id",
+			wrap(h.authorizer.Authorize(h.editUser, authTypePassword)),
+		},
 	}
 }

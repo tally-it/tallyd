@@ -16,7 +16,39 @@ import (
 	"github.com/volatiletech/sqlboiler/boil"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/nullbio/null.v6"
+	"time"
 )
+
+func (m *Mysql) EditUser(ctx context.Context, id int, name, email string) (err error) {
+	logger := pkgLogger.ForFunc(ctx, "EditUser")
+	logger.Debug("enter repository")
+
+	logger.Info(email)
+	emailInterface := null.String{}
+	if email == "" {
+		emailInterface = null.String{"", false}
+	} else {
+		emailInterface = null.String{email, true}
+	}
+
+	user, err := models.FindUser(m.db, id)
+	if err != nil {
+		logger.WithError(err).WithField("userID", id).Error("failed to find user")
+		return errors.InternalServerError("db error", err)
+	}
+
+	user.Name = name
+	user.Email = emailInterface
+	user.UpdatedAt = null.TimeFrom(time.Now())
+
+	err = user.Update(m.db, models.UserColumns.Name, models.UserColumns.Email, models.UserColumns.UpdatedAt)
+	if err != nil {
+		logger.WithError(err).Error("failed to update user")
+		return errors.InternalServerError("db error", err)
+	}
+
+	return nil
+}
 
 func (m *Mysql) AddLocalUser(ctx context.Context, name, email, password string, isAdmin bool) (userID int, err error) {
 	logger := pkgLogger.ForFunc(ctx, "AddLocalUser")

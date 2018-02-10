@@ -19,6 +19,15 @@ type User struct {
 }
 
 // swagger:model
+type EditUserRequestBody struct {
+	// required: true
+	Name string `json:"name" validate:"nonzero"`
+	// required: true
+	Email string `json:"email"`
+	// required: true
+}
+
+// swagger:model
 type AddUserRequestBody struct {
 	// required: true
 	Name string `json:"name"`

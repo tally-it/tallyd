@@ -18,9 +18,9 @@ import (
 type authType int
 
 const (
-	authTypeNone authType = iota
-	authTypePin
+	authTypeNone     authType = iota
 	authTypePassword
+	authTypePin
 	authTypeAll
 )
 
@@ -59,6 +59,12 @@ func (a *JWTAuthorizer) Authorize(fn handlerFunc, authType authType) handlerFunc
 		ctx, err = extractIsBlockedStatus(ctx, claims)
 		if err != nil {
 			logger.WithError(err).Error("failed to extract user is blocked status")
+			return nil, errors.InternalServerError("something went wrong", nil)
+		}
+
+		ctx, err = extractAuthType(ctx, claims)
+		if err != nil {
+			logger.WithError(err).Error("failed to extract auth type")
 			return nil, errors.InternalServerError("something went wrong", nil)
 		}
 
@@ -141,6 +147,18 @@ func (a *JWTAuthorizer) extractAndValidateJWT(ctx context.Context, authType auth
 		return nil, errors.InternalServerError("something went wrong", nil)
 	}
 
+	switch authType {
+	case authTypePassword:
+		if claims["authType"] != "passwd" {
+			logger.WithField("authType", claims["authType"]).Error("wrong authType, passwd needed")
+			return nil, errors.InternalServerError("wrong authType", nil)
+		}
+	case authTypePin:
+		if claims["authType"] != "pin" {
+			logger.WithField("authType", claims["authType"]).Error("wrong authType, pin needed")
+			return nil, errors.InternalServerError("wrong authType", nil)
+		}
+	}
 	return claims, nil
 }
 
@@ -191,4 +209,20 @@ func extractIsBlockedStatus(ctx context.Context, claims jwt.MapClaims) (context.
 		return nil, fmt.Errorf("type assertion failed")
 	}
 	return ctxutil.InjectUserIsBlocked(ctx, isBlocked), nil
+}
+
+func extractAuthType(ctx context.Context, claims jwt.MapClaims) (context.Context, error) {
+	if claims == nil {
+		return ctx, nil
+	}
+
+	authTypeInterface, ok := claims["authType"]
+	if !ok {
+		return nil, fmt.Errorf("failed to find claim")
+	}
+	authType, ok := authTypeInterface.(string)
+	if !ok {
+		return nil, fmt.Errorf("type assertion failed")
+	}
+	return ctxutil.InjectAuthType(ctx, authType), nil
 }

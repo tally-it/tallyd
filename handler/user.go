@@ -103,6 +103,44 @@ func (h *Handler) signUp(ctx context.Context, r *http.Request, pathParams map[st
 	return &contract.AddUserResponseBody{UserID: id}, err
 }
 
+func (h *Handler) editUser(ctx context.Context, r *http.Request, pathParams map[string]string) (interface{}, error) {
+	logger := pkgLogger.ForFunc(ctx, "editUser")
+	logger.Debug("enter handler")
+
+	// TODO: Admin should also be able to change blocked, isAdmin or other switches
+	// read id
+	userID := pathParams["id"]
+	id, err := strconv.Atoi(userID)
+	if err != nil {
+		logger.WithError(err).Error(err.Error())
+		return nil, errors.BadRequest("failed to parse id")
+	}
+
+	user := &contract.EditUserRequestBody{}
+
+	// get body data
+	decoder := json.NewDecoder(r.Body)
+	err = decoder.Decode(user)
+	if err != nil {
+		logger.WithError(err).Error("failed to parse body")
+		return nil, errors.BadRequest(err.Error())
+	}
+	defer r.Body.Close()
+
+	// validate data
+	if err = validator.Validate(user); err != nil {
+		logger.WithError(err).Warn("bad request")
+		return nil, errors.BadRequest(err.Error())
+	}
+
+	err = h.repo.EditUser(ctx, id, user.Name, user.Email)
+	if err != nil {
+		return nil, err
+	}
+
+	return nil, nil
+}
+
 func (h *Handler) addTransaction(ctx context.Context, r *http.Request, pathParams map[string]string) (interface{}, error) {
 	logger := pkgLogger.ForFunc(ctx, "addTransaction")
 	logger.Debug("enter handler")
@@ -194,10 +232,12 @@ func (h *Handler) login(ctx context.Context, r *http.Request, pathParams map[str
 	conf := config.ReadConfig()
 
 	// create JWT
+	// TODO extract other auth-methods from db and insert into token
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"userID":    u.UserID,
 		"isBlocked": u.IsBlocked,
 		"isAdmin":   u.IsAdmin,
+		"authType":  "passwd",
 		"exp":       time.Now().Add(time.Second * time.Duration(conf.JWT.ValidTime)),
 	})
 	tokenString, err := token.SignedString([]byte(conf.JWT.Secret))
