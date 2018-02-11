@@ -250,6 +250,12 @@ func (h *Handler) login(ctx context.Context, r *http.Request, pathParams map[str
 		return nil, err
 	}
 
+	// get full user
+	fullUser, err := h.repo.GetUserWithBalance(ctx, u.UserID)
+	if err != nil {
+		return nil, err
+	}
+
 	if h.ldap.IsActive() {
 		err = h.ldap.Login(ctx, user.Name, user.Password)
 		if err != nil {
@@ -269,8 +275,8 @@ func (h *Handler) login(ctx context.Context, r *http.Request, pathParams map[str
 	// TODO extract other auth-methods from db and insert into token
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"userID":    u.UserID,
-		"isBlocked": u.IsBlocked,
-		"isAdmin":   u.IsAdmin,
+		"isBlocked": fullUser.IsBlocked,
+		"isAdmin":   fullUser.IsAdmin,
 		"authType":  "passwd",
 		"exp":       time.Now().Add(time.Second * time.Duration(conf.JWT.ValidTime)),
 	})

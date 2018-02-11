@@ -143,18 +143,6 @@ func (h *Handler) Routes() []*router.Route {
 			wrap(h.authorizer.Authorize(h.getUserDetail, authTypeNone)),
 		},
 		{
-			"GetProductIndex",
-			"GET",
-			"/v1/product",
-			wrap(h.productIndex),
-		},
-		{
-			"GetProductDetail",
-			"GET",
-			"/v1/product/:sku",
-			wrap(h.productDetail),
-		},
-		{
 			"AddTransaction",
 			"POST",
 			"/v1/user/:id/transaction",
@@ -171,6 +159,24 @@ func (h *Handler) Routes() []*router.Route {
 			"DELETE",
 			"/v1/user/:id",
 			wrap(h.authorizer.Authorize(h.deleteUser, authTypePassword)),
+		},
+		{
+			"GetProductIndex",
+			"GET",
+			"/v1/product",
+			wrap(h.productIndex),
+		},
+		{
+			"GetProductDetail",
+			"GET",
+			"/v1/product/:sku",
+			wrap(h.productDetail),
+		},
+		{
+			"GetProductDetail",
+			"POST",
+			"/v1/product",
+			wrap(h.authorizer.Authorize(h.addProduct, authTypeAll)),
 		},
 	}
 }

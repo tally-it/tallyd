@@ -6,6 +6,9 @@ import (
 
 	"github.com/marove2000/hack-and-pay/contract"
 	"github.com/marove2000/hack-and-pay/errors"
+	"github.com/marove2000/hack-and-pay/repository/sql/models"
+
+	"gopkg.in/nullbio/null.v6"
 )
 
 func (m *Mysql) GetProductsWithStock(ctx context.Context) ([]*contract.Product, error) {
@@ -35,6 +38,52 @@ func (m *Mysql) GetProductsWithStock(ctx context.Context) ([]*contract.Product, 
 	}
 
 	return products, nil
+}
+
+func (m *Mysql) AddProduct(ctx context.Context, r contract.AddProductRequestBody) (int, error) {
+	logger := pkgLogger.ForFunc(ctx, "GetProductsWithStock")
+	logger.Debug("enter repo")
+
+	product := models.Product{
+		SKUID:        r.SKU,
+		Name:         r.Name,
+		GTIN:         null.StringFrom(r.GTIN),
+		Price:        r.Price.String(),
+		Quantity:     null.StringFrom(r.Quantity.String()),
+		QuantityUnit: null.StringFrom(r.QuantityUnit),
+	}
+
+	if r.Visibility == true {
+		product.IsVisible = boolToString(true)
+	} else {
+		product.IsVisible = boolToString(false)
+	}
+
+	// start transaction
+	tx, err := m.db.Beginx()
+	defer func() {
+		errr := tx.Rollback()
+		if errr != nil && errr != sql.ErrTxDone {
+			logger.WithError(errr).Error("failed to roll back tx")
+			err = errors.InternalServerError("db error", errr)
+		}
+	}()
+
+	err = product.Insert(tx)
+	if err != nil {
+		logger.WithError(err).Error("failed to insert product")
+		return 0, errors.InternalServerError("db error", err)
+	}
+
+	//TODO add category map
+
+	err = tx.Commit()
+	if err != nil {
+		logger.WithError(err).Error("failed to commit")
+		return 0, errors.InternalServerError("db error", err)
+	}
+
+	return product.ProductID, nil
 }
 
 func (m *Mysql) GetProductBySKU(ctx context.Context, SKU int) (*contract.Product, error) {

@@ -6,6 +6,10 @@ import (
 	"strconv"
 
 	"github.com/marove2000/hack-and-pay/errors"
+	"encoding/json"
+	"github.com/go-validator/validator"
+	"github.com/marove2000/hack-and-pay/contract"
+	"github.com/marove2000/hack-and-pay/ctxutil"
 )
 
 func (h *Handler) productIndex(ctx context.Context, r *http.Request, pathParams map[string]string) (interface{}, error) {
@@ -41,4 +45,35 @@ func (h *Handler) productDetail(ctx context.Context, r *http.Request, pathParams
 	}
 
 	return product, nil
+}
+
+func (h *Handler) addProduct(ctx context.Context, r *http.Request, pathParams map[string]string) (interface{}, error) {
+	logger := pkgLogger.ForFunc(ctx, "addProduct")
+	logger.Debug("enter handler")
+
+	product := &contract.AddProductRequestBody{}
+
+	// get body data
+	decoder := json.NewDecoder(r.Body)
+	err := decoder.Decode(product)
+	if err != nil {
+		logger.WithError(err).Error("failed to parse body")
+		return nil, errors.BadRequest(err.Error())
+	}
+	defer r.Body.Close()
+
+	// validate data
+	if err = validator.Validate(product); err != nil {
+		logger.WithError(err).Warn("bad request")
+		return nil, errors.BadRequest(err.Error())
+	}
+
+	var productID int
+	if ctxutil.GetAdminStatus(ctx) == true {
+		productID, err = h.repo.AddProduct(ctx, *product)
+	} else {
+		return 0, errors.Unauthorized()
+	}
+
+	return productID, nil
 }

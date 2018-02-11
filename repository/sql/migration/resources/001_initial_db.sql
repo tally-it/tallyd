@@ -47,7 +47,7 @@ CREATE TABLE products
   added_at      DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
   deleted_at    DATETIME                           NULL,
   is_visible    BIT DEFAULT b'1'                   NOT NULL,
-  quantity      DECIMAL(15, 2)                     NULL,
+  quantity      DECIMAL(15, 4)                     NULL,
   quantity_unit VARCHAR(255)                       NULL
 )
   ENGINE = InnoDB

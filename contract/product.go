@@ -24,3 +24,23 @@ type ProductReturnBody struct {
 	TimeChanged string `json:"TimeChange" db:"updated_ad"`
 	TimeDeleted string `json:"TimeDeleted" db:"deleted_ad"`
 }
+
+// swagger:model
+type AddProductRequestBody struct {
+	// required: true
+	SKU int `json:"SKU" db:"SKU_id" validate:"nonzero"`
+	// required: true
+	Name string `json:"Name" db:"name" validate:"nonzero"`
+	// required: false
+	GTIN string `json:"GTIN" db:"GTIN"`
+	// required: true
+	Price decimal.Decimal `json:"price" db:"price" validate:"nonzero"`
+	// required: false
+	Visibility types.BitBool `json:"visibility" db:"is_visible"`
+	// required: false
+	Category []int64 `json:"category"`
+	// required: false
+	Quantity decimal.Decimal `json:"quantity" db:"quantity"`
+	// required: false
+	QuantityUnit string `json:"quantityUnit" db:"quantity_unit"`
+}
