@@ -25,6 +25,9 @@ type EditUserRequestBody struct {
 	// required: true
 	Email string `json:"email"`
 	// required: true
+	IsBlocked types.BitBool `json:"isBlocked"`
+	// required: true
+	IsAdmin types.BitBool `json:"isAdmin"`
 }
 
 // swagger:model

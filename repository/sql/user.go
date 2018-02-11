@@ -19,7 +19,7 @@ import (
 	"time"
 )
 
-func (m *Mysql) EditUser(ctx context.Context, id int, name, email string) (err error) {
+func (m *Mysql) EditUser(ctx context.Context, id int, name, email string, isBlocked, isAdmin types.BitBool) (err error) {
 	logger := pkgLogger.ForFunc(ctx, "EditUser")
 	logger.Debug("enter repository")
 
@@ -37,11 +37,23 @@ func (m *Mysql) EditUser(ctx context.Context, id int, name, email string) (err e
 		return errors.InternalServerError("db error", err)
 	}
 
+	if isBlocked == true {
+		user.IsBlocked = boolToString(true)
+	} else {
+		user.IsBlocked = boolToString(false)
+	}
+
+	if isAdmin == true {
+		user.IsAdmin = boolToString(true)
+	} else {
+		user.IsAdmin = boolToString(false)
+	}
+
 	user.Name = name
 	user.Email = emailInterface
 	user.UpdatedAt = null.TimeFrom(time.Now())
 
-	err = user.Update(m.db, models.UserColumns.Name, models.UserColumns.Email, models.UserColumns.UpdatedAt)
+	err = user.Update(m.db)
 	if err != nil {
 		logger.WithError(err).Error("failed to update user")
 		return errors.InternalServerError("db error", err)

@@ -107,7 +107,6 @@ func (h *Handler) editUser(ctx context.Context, r *http.Request, pathParams map[
 	logger := pkgLogger.ForFunc(ctx, "editUser")
 	logger.Debug("enter handler")
 
-	// TODO: Admin should also be able to change blocked, isAdmin or other switches
 	// read id
 	userID := pathParams["id"]
 	id, err := strconv.Atoi(userID)
@@ -133,7 +132,16 @@ func (h *Handler) editUser(ctx context.Context, r *http.Request, pathParams map[
 		return nil, errors.BadRequest(err.Error())
 	}
 
-	err = h.repo.EditUser(ctx, id, user.Name, user.Email)
+	dbUser, err := h.repo.GetUserWithBalance(ctx, id)
+	logger.Info(dbUser.IsBlocked)
+
+	// check if data, which can be only edited by admin, are changed
+	if ctxutil.GetAdminStatus(ctx) == false && (user.IsBlocked != dbUser.IsBlocked || user.IsAdmin != dbUser.IsAdmin) {
+		logger.Warn("admin status is needed to execute the update")
+		return nil, errors.Unauthorized()
+	}
+
+	err = h.repo.EditUser(ctx, id, user.Name, user.Email, user.IsBlocked, user.IsAdmin)
 	if err != nil {
 		return nil, err
 	}
