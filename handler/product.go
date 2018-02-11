@@ -71,6 +71,9 @@ func (h *Handler) addProduct(ctx context.Context, r *http.Request, pathParams ma
 	var productID int
 	if ctxutil.GetAdminStatus(ctx) == true {
 		productID, err = h.repo.AddProduct(ctx, *product)
+		if err != nil {
+			return 0, err
+		}
 	} else {
 		return 0, errors.Unauthorized()
 	}

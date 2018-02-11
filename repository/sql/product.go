@@ -9,6 +9,7 @@ import (
 	"github.com/marove2000/hack-and-pay/repository/sql/models"
 
 	"gopkg.in/nullbio/null.v6"
+	"github.com/vattle/sqlboiler/queries/qm"
 )
 
 func (m *Mysql) GetProductsWithStock(ctx context.Context) ([]*contract.Product, error) {
@@ -68,6 +69,18 @@ func (m *Mysql) AddProduct(ctx context.Context, r contract.AddProductRequestBody
 			err = errors.InternalServerError("db error", errr)
 		}
 	}()
+
+	// check if product already exists
+	c, err := models.Products(tx, qm.Where("SKU_id=?", r.SKU)).Exists()
+	if err != nil {
+		logger.WithError(err).Error("failed to fetch product from db")
+		return 0, errors.InternalServerError("db error", err)
+	}
+
+	if c == true {
+		logger.WithField("sku", r.SKU).Warn("product already exists")
+		return 0, errors.BadRequest("SKU already exists")
+	}
 
 	err = product.Insert(tx)
 	if err != nil {
