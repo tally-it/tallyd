@@ -103,6 +103,32 @@ func (h *Handler) signUp(ctx context.Context, r *http.Request, pathParams map[st
 	return &contract.AddUserResponseBody{UserID: id}, err
 }
 
+func (h *Handler) deleteUser(ctx context.Context, r *http.Request, pathParams map[string]string) (interface{}, error) {
+	logger := pkgLogger.ForFunc(ctx, "deleteUser")
+	logger.Debug("enter handler")
+
+	// read id
+	userID := pathParams["id"]
+	id, err := strconv.Atoi(userID)
+	if err != nil {
+		logger.WithError(err).Error(err.Error())
+		return nil, errors.BadRequest("failed to parse id")
+	}
+
+	// user can only delete themself; admins can delete everybody
+	// check if data, which can be only edited by admin, are changed
+	if ctxutil.GetAdminStatus(ctx) == true || ctxutil.GetUserID(ctx) == id {
+		err = h.repo.DeleteUser(ctx, id)
+		if err != nil {
+			return nil, errors.BadRequest("bad request")
+		}
+	} else {
+		return nil, errors.Unauthorized()
+	}
+
+	return nil, nil
+}
+
 func (h *Handler) editUser(ctx context.Context, r *http.Request, pathParams map[string]string) (interface{}, error) {
 	logger := pkgLogger.ForFunc(ctx, "editUser")
 	logger.Debug("enter handler")

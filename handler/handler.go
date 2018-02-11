@@ -166,5 +166,11 @@ func (h *Handler) Routes() []*router.Route {
 			"/v1/user/:id",
 			wrap(h.authorizer.Authorize(h.editUser, authTypePassword)),
 		},
+		{
+			"DeleteUser",
+			"DELETE",
+			"/v1/user/:id",
+			wrap(h.authorizer.Authorize(h.deleteUser, authTypePassword)),
+		},
 	}
 }

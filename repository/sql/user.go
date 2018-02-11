@@ -19,11 +19,30 @@ import (
 	"time"
 )
 
+func (m *Mysql) DeleteUser(ctx context.Context, id int) (err error) {
+	logger := pkgLogger.ForFunc(ctx, "DeleteUser")
+	logger.Debug("enter repository")
+
+
+	user, err := models.FindUser(m.db, id)
+	if err != nil {
+		logger.WithError(err).WithField("userID", id).Error("failed to find user")
+		return errors.InternalServerError("db error", err)
+	}
+
+	err = user.Delete(m.db)
+	if err != nil {
+		logger.WithError(err).Error("failed to update user")
+		return errors.InternalServerError("db error", err)
+	}
+
+	return nil
+}
+
 func (m *Mysql) EditUser(ctx context.Context, id int, name, email string, isBlocked, isAdmin types.BitBool) (err error) {
 	logger := pkgLogger.ForFunc(ctx, "EditUser")
 	logger.Debug("enter repository")
 
-	logger.Info(email)
 	emailInterface := null.String{}
 	if email == "" {
 		emailInterface = null.String{"", false}
