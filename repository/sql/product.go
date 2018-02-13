@@ -10,7 +10,7 @@ import (
 
 	"gopkg.in/nullbio/null.v6"
 	"github.com/vattle/sqlboiler/queries/qm"
-	"reflect"
+	"time"
 )
 
 func (m *Mysql) GetProductsWithStock(ctx context.Context) ([]*contract.Product, error) {
@@ -101,7 +101,7 @@ func (m *Mysql) AddProduct(ctx context.Context, r contract.AddProductRequestBody
 }
 
 func (m *Mysql) EditProduct(ctx context.Context, sku int, r contract.AddProductRequestBody) (error) {
-	logger := pkgLogger.ForFunc(ctx, "ChangeProduct")
+	logger := pkgLogger.ForFunc(ctx, "EditProduct")
 	logger.Debug("enter repo")
 
 	product := models.Product{
@@ -217,4 +217,41 @@ func (m *Mysql) GetProductBySKU(ctx context.Context, SKU int) (*contract.Product
 	}
 
 	return product, nil
+}
+
+func (m *Mysql) DeleteProduct(ctx context.Context, sku int) (error) {
+	logger := pkgLogger.ForFunc(ctx, "DeleteProduct")
+	logger.Debug("enter repo")
+
+	// check if sku is existing
+	dbProduct, err := m.GetProductBySKU(ctx, sku)
+	if err != nil {
+		logger.WithField("sku", sku).WithError(err).Warn("failed to find product")
+		return errors.BadRequest("failed to find product")
+	}
+
+	product := models.Product{
+		SKUID:        dbProduct.SKU,
+		Name:         dbProduct.Name,
+		GTIN:         null.StringFrom(dbProduct.GTIN),
+		Price:        dbProduct.Price.String(),
+		Quantity:     null.StringFrom(dbProduct.Quantity.String()),
+		QuantityUnit: null.StringFrom(dbProduct.QuantityUnit),
+		DeletedAt: null.TimeFrom(time.Now()),
+	}
+
+	if dbProduct.Visibility == true {
+		product.IsVisible = boolToString(true)
+	} else {
+		product.IsVisible = boolToString(false)
+	}
+
+	// delete product
+	err = product.Insert(m.db)
+	if err != nil {
+		logger.WithError(err).Error("failed to delete product")
+		return errors.InternalServerError("db error", err)
+	}
+
+	return nil
 }

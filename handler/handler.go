@@ -184,5 +184,11 @@ func (h *Handler) Routes() []*router.Route {
 			"/v1/product/:sku",
 			wrap(h.authorizer.Authorize(h.editProduct, authTypeAll)),
 		},
+		{
+			"DeleteProduct",
+			"DELETE",
+			"/v1/product/:sku",
+			wrap(h.authorizer.Authorize(h.deleteProduct, authTypeAll)),
+		},
 	}
 }

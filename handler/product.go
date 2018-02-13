@@ -121,3 +121,29 @@ func (h *Handler) editProduct(ctx context.Context, r *http.Request, pathParams m
 
 	return nil, nil
 }
+
+func (h *Handler) deleteProduct(ctx context.Context, r *http.Request, pathParams map[string]string) (interface{}, error) {
+	logger := pkgLogger.ForFunc(ctx, "deleteProduct")
+	logger.Debug("enter handler")
+
+	// read id
+	sku := pathParams["sku"]
+	SKU, err := strconv.Atoi(sku)
+	if err != nil {
+		logger.WithError(err).Error("failed to parse product sku")
+		return nil, errors.BadRequest(err.Error())
+	}
+
+	if ctxutil.GetAdminStatus(ctx) == true {
+
+		// update delete status
+		err = h.repo.DeleteProduct(ctx, SKU)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		return nil, errors.Unauthorized()
+	}
+
+	return nil, nil
+}
