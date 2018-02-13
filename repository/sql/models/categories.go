@@ -22,11 +22,11 @@ import (
 
 // Category is an object representing the database table.
 type Category struct {
-	CategoryID int  `boil:"category_id" json:"category_id" toml:"category_id" yaml:"category_id"`
-	Name       int  `boil:"name" json:"name" toml:"name" yaml:"name"`
-	Visible    int8 `boil:"visible" json:"visible" toml:"visible" yaml:"visible"`
-	Active     int8 `boil:"active" json:"active" toml:"active" yaml:"active"`
-	IsRoot     int8 `boil:"is_root" json:"is_root" toml:"is_root" yaml:"is_root"`
+	CategoryID int    `boil:"category_id" json:"category_id" toml:"category_id" yaml:"category_id"`
+	Name       string `boil:"name" json:"name" toml:"name" yaml:"name"`
+	IsVisible  string `boil:"is_visible" json:"is_visible" toml:"is_visible" yaml:"is_visible"`
+	IsActive   string `boil:"is_active" json:"is_active" toml:"is_active" yaml:"is_active"`
+	IsRoot     string `boil:"is_root" json:"is_root" toml:"is_root" yaml:"is_root"`
 
 	R *categoryR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L categoryL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -35,14 +35,14 @@ type Category struct {
 var CategoryColumns = struct {
 	CategoryID string
 	Name       string
-	Visible    string
-	Active     string
+	IsVisible  string
+	IsActive   string
 	IsRoot     string
 }{
 	CategoryID: "category_id",
 	Name:       "name",
-	Visible:    "visible",
-	Active:     "active",
+	IsVisible:  "is_visible",
+	IsActive:   "is_active",
 	IsRoot:     "is_root",
 }
 
@@ -55,9 +55,9 @@ type categoryR struct {
 type categoryL struct{}
 
 var (
-	categoryColumns               = []string{"category_id", "name", "visible", "active", "is_root"}
+	categoryColumns               = []string{"category_id", "name", "is_visible", "is_active", "is_root"}
 	categoryColumnsWithoutDefault = []string{"name"}
-	categoryColumnsWithDefault    = []string{"category_id", "visible", "active", "is_root"}
+	categoryColumnsWithDefault    = []string{"category_id", "is_visible", "is_active", "is_root"}
 	categoryPrimaryKeyColumns     = []string{"category_id"}
 )
 

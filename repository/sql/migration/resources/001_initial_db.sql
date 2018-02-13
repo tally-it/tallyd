@@ -1,15 +1,15 @@
 -- +migrate Up
-CREATE TABLE categories
+create table categories
 (
-  category_id INT AUTO_INCREMENT
-    PRIMARY KEY,
-  name        INT                    NOT NULL,
-  visible     TINYINT(1) DEFAULT '1' NOT NULL,
-  active      TINYINT(1) DEFAULT '0' NOT NULL,
-  is_root     TINYINT(1) DEFAULT '1' NOT NULL
+  category_id int auto_increment
+    primary key,
+  name        varchar(255)     not null,
+  is_visible  bit default b'1' not null,
+  is_active   bit default b'0' not null,
+  is_root     bit default b'1' not null
 )
-  ENGINE = InnoDB
-  CHARSET = utf8mb4;
+  engine = InnoDB
+  charset = utf8mb4;
 
 CREATE TABLE category_parent_map
 (

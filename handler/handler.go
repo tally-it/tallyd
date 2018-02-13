@@ -196,5 +196,11 @@ func (h *Handler) Routes() []*router.Route {
 			"/v1/product/:sku/stock",
 			wrap(h.authorizer.Authorize(h.changeStock, authTypeAll)),
 		},
+		{
+			"AddCategory",
+			"POST",
+			"/v1/category",
+			wrap(h.authorizer.Authorize(h.addCategory, authTypeAll)),
+		},
 	}
 }
