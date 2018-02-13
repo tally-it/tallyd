@@ -80,3 +80,44 @@ func (h *Handler) addProduct(ctx context.Context, r *http.Request, pathParams ma
 
 	return productID, nil
 }
+
+func (h *Handler) editProduct(ctx context.Context, r *http.Request, pathParams map[string]string) (interface{}, error) {
+	logger := pkgLogger.ForFunc(ctx, "changeProduct")
+	logger.Debug("enter handler")
+
+	// read id
+	sku := pathParams["sku"]
+	SKU, err := strconv.Atoi(sku)
+	if err != nil {
+		logger.WithError(err).Error("failed to parse product sku")
+		return nil, errors.BadRequest(err.Error())
+	}
+
+	product := &contract.AddProductRequestBody{}
+
+	// get body data
+	decoder := json.NewDecoder(r.Body)
+	err = decoder.Decode(product)
+	if err != nil {
+		logger.WithError(err).Error("failed to parse body")
+		return nil, errors.BadRequest(err.Error())
+	}
+	defer r.Body.Close()
+
+	// validate data
+	if err = validator.Validate(product); err != nil {
+		logger.WithError(err).Warn("bad request")
+		return nil, errors.BadRequest(err.Error())
+	}
+
+	if ctxutil.GetAdminStatus(ctx) == true {
+		err = h.repo.EditProduct(ctx, SKU, *product)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		return nil, errors.Unauthorized()
+	}
+
+	return nil, nil
+}

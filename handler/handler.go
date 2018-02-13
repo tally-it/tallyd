@@ -173,10 +173,16 @@ func (h *Handler) Routes() []*router.Route {
 			wrap(h.productDetail),
 		},
 		{
-			"GetProductDetail",
+			"AddProduct",
 			"POST",
 			"/v1/product",
 			wrap(h.authorizer.Authorize(h.addProduct, authTypeAll)),
+		},
+		{
+			"UpdateProduct",
+			"PUT",
+			"/v1/product/:sku",
+			wrap(h.authorizer.Authorize(h.editProduct, authTypeAll)),
 		},
 	}
 }
