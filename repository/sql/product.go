@@ -255,3 +255,31 @@ func (m *Mysql) DeleteProduct(ctx context.Context, sku int) (error) {
 
 	return nil
 }
+
+func (m *Mysql) ChangeStock(ctx context.Context, r contract.ChangeStockRequestBody) (error) {
+	logger := pkgLogger.ForFunc(ctx, "ChangeProduct")
+	logger.Debug("enter repo")
+
+
+	// check if sku is existing
+	_, err := m.GetProductBySKU(ctx, r.SKU)
+	if err != nil {
+		logger.WithField("sku", r.SKU).WithError(err).Warn("failed to find product")
+		return errors.BadRequest("failed to find product")
+	}
+
+	stock := models.Stock{
+		SKUID: r.SKU,
+		UserID: null.IntFrom(r.UserID),
+		Quantity: r.Quantity,
+	}
+
+	// update stock
+	err = stock.Insert(m.db)
+	if err != nil {
+		logger.WithField("sku", r.SKU).WithError(err).Error("failed to update stock")
+		return errors.InternalServerError("db error", err)
+	}
+
+	return nil
+}

@@ -190,5 +190,11 @@ func (h *Handler) Routes() []*router.Route {
 			"/v1/product/:sku",
 			wrap(h.authorizer.Authorize(h.deleteProduct, authTypeAll)),
 		},
+		{
+			"ChangeStock",
+			"POST",
+			"/v1/product/:sku/stock",
+			wrap(h.authorizer.Authorize(h.changeStock, authTypeAll)),
+		},
 	}
 }

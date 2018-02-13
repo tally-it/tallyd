@@ -16,8 +16,8 @@ type Product struct {
 	Quantity     decimal.Decimal `json:"quantity" db:"quantity"`
 	QuantityUnit string          `json:"quantityUnit" db:"quantity_unit"`
 	Stock        int             `json:"stock" db:"stock"`
-	TimeAdded    string          `json:"TimeAdded" db:"added_ad"`
-	TimeDeleted  string          `json:"TimeDeleted" db:"deleted_ad"`
+	//TimeAdded    string          `json:"TimeAdded" db:"added_ad"`
+	//TimeDeleted  string          `json:"TimeDeleted" db:"deleted_ad"`
 }
 
 // swagger:model

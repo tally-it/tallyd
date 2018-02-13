@@ -147,3 +147,51 @@ func (h *Handler) deleteProduct(ctx context.Context, r *http.Request, pathParams
 
 	return nil, nil
 }
+
+func (h *Handler) changeStock(ctx context.Context, r *http.Request, pathParams map[string]string) (interface{}, error) {
+	logger := pkgLogger.ForFunc(ctx, "changeStock")
+	logger.Debug("enter handler")
+
+	// read id
+	sku := pathParams["sku"]
+	SKU, err := strconv.Atoi(sku)
+	if err != nil {
+		logger.WithError(err).Error("failed to parse product sku")
+		return nil, errors.BadRequest(err.Error())
+	}
+
+	// get body data
+	stock := &contract.ChangeStockRequestBody{}
+
+	decoder := json.NewDecoder(r.Body)
+	err = decoder.Decode(stock)
+	if err != nil {
+		logger.WithError(err).Error("failed to parse body")
+		return nil, errors.BadRequest(err.Error())
+	}
+	defer r.Body.Close()
+
+	// insert user id
+	stock.UserID = ctxutil.GetUserID(ctx)
+
+	// insert sku
+	stock.SKU = SKU
+
+	// validate data
+	if err = validator.Validate(stock); err != nil {
+		logger.WithError(err).Warn("bad request")
+		return nil, errors.BadRequest(err.Error())
+	}
+
+	if ctxutil.GetAdminStatus(ctx) == true {
+		// change stock
+		err = h.repo.ChangeStock(ctx, *stock)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		return nil, errors.Unauthorized()
+	}
+
+	return nil, nil
+}
