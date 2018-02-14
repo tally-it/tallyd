@@ -1,4 +1,4 @@
-# Hack-n-Pay
+# Tally-It
 A tool for hack spaces, clubs, groups and companies to manage a digital tally sheet.
 
 ## API Documentation
