@@ -77,6 +77,8 @@ func wrap(fn handlerFunc) mux.HandlerFunc {
 		defer r.Body.Close()
 
 		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, PUT, DELETE, HEAD")
 
 		ctx := context.Background()
 
