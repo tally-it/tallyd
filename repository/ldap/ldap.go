@@ -42,14 +42,14 @@ func New(conf *config.LDAP) (*LDAP, error) {
 	tlsConfig := &tls.Config{InsecureSkipVerify: conf.SkipInsecureVerify, RootCAs:certPool, ServerName: conf.Host}
 
 	// Connect to LDAP
-	ldap, err := ldap.DialTLS(conf.Protocol, conf.Host+":"+strconv.Itoa(conf.Port), tlsConfig)
+	ldapConn, err := ldap.DialTLS(conf.Protocol, conf.Host+":"+strconv.Itoa(conf.Port), tlsConfig)
 	if err != nil {
 		logger.WithError(err).Error("failed to connect to LDAP")
 		return nil, errors.InternalServerError("failed to connect to LDAP", err)
 	}
 
 	return &LDAP{
-		conn:     ldap,
+		conn:     ldapConn,
 		isActive: conf.Active,
 	}, nil
 }
