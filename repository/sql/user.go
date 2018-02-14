@@ -23,7 +23,6 @@ func (m *Mysql) DeleteUser(ctx context.Context, id int) (err error) {
 	logger := pkgLogger.ForFunc(ctx, "DeleteUser")
 	logger.Debug("enter repository")
 
-
 	user, err := models.FindUser(m.db, id)
 	if err != nil {
 		logger.WithError(err).WithField("userID", id).Error("failed to find user")
@@ -256,7 +255,7 @@ type user struct {
 }
 
 func (m *Mysql) GetUserWithBalance(ctx context.Context, userID int) (*contract.User, error) {
-	logger := pkgLogger.ForFunc(ctx, "GetUsersWithBalance")
+	logger := pkgLogger.ForFunc(ctx, "GetUserWithBalance")
 	logger.Debug("enter repo")
 
 	user := &user{}
@@ -298,7 +297,7 @@ func (m *Mysql) GetUsersWithBalance(ctx context.Context) ([]*contract.User, erro
 	logger := pkgLogger.ForFunc(ctx, "GetUsersWithBalance")
 	logger.Debug("enter repo")
 
-	var users []*contract.User
+	var users []*user
 	err := m.db.Select(&users, `
 		SELECT users.user_id, 
 			users.email, 
@@ -315,7 +314,20 @@ func (m *Mysql) GetUsersWithBalance(ctx context.Context) ([]*contract.User, erro
 		return nil, errors.InternalServerError("db error", err)
 	}
 
-	return users, nil
+	out := make([]*contract.User, len(users))
+
+	for i, u := range users {
+		out[i] = &contract.User{
+			UserID:    u.UserID,
+			Name:      u.Name,
+			Email:     u.Email.String,
+			IsBlocked: u.IsBlocked,
+			IsAdmin:   u.IsAdmin,
+			Balance:   u.Balance,
+		}
+	}
+
+	return out, nil
 }
 
 func (m *Mysql) GetUserCount(ctx context.Context) (int64, error) {
