@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/marove2000/hack-and-pay/ctxutil"
-	"github.com/marove2000/hack-and-pay/errors"
+	"github.com/tally-it/tallyd/ctxutil"
+	"github.com/tally-it/tallyd/errors"
 
 	"github.com/dgrijalva/jwt-go"
 	mux "github.com/dimfeld/httptreemux"

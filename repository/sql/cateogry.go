@@ -3,9 +3,9 @@ package sql
 import (
 	"context"
 
-	"github.com/marove2000/hack-and-pay/contract"
-	"github.com/marove2000/hack-and-pay/errors"
-	"github.com/marove2000/hack-and-pay/repository/sql/models"
+	"github.com/tally-it/tallyd/contract"
+	"github.com/tally-it/tallyd/errors"
+	"github.com/tally-it/tallyd/repository/sql/models"
 
 )
 

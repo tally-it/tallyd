@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/marove2000/hack-and-pay/repository/sql/migration"
+	"github.com/tally-it/tallyd/repository/sql/migration"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"

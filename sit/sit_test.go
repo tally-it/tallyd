@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/marove2000/hack-and-pay/contract"
+	"github.com/tally-it/tallyd/contract"
 
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"

@@ -3,13 +3,13 @@ package sql
 import (
 	"context"
 
-	"github.com/marove2000/hack-and-pay/config"
-	"github.com/marove2000/hack-and-pay/errors"
-	"github.com/marove2000/hack-and-pay/repository/sql/migration"
+	"github.com/tally-it/tallyd/config"
+	"github.com/tally-it/tallyd/errors"
+	"github.com/tally-it/tallyd/repository/sql/migration"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
-	"github.com/marove2000/hack-and-pay/log"
+	"github.com/tally-it/tallyd/log"
 	sqlmigrate "github.com/rubenv/sql-migrate"
 )
 

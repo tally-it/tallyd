@@ -4,7 +4,7 @@ import (
 	"net"
 	"testing"
 
-	"github.com/marove2000/hack-and-pay/config"
+	"github.com/tally-it/tallyd/config"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"

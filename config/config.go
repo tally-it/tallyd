@@ -4,8 +4,8 @@ import (
 	"context"
 	"os"
 
-	"github.com/marove2000/hack-and-pay/errors"
-	"github.com/marove2000/hack-and-pay/log"
+	"github.com/tally-it/tallyd/errors"
+	"github.com/tally-it/tallyd/log"
 
 	"github.com/BurntSushi/toml"
 	"github.com/go-validator/validator"
@@ -95,7 +95,7 @@ func ReadFile(filepath string) (*Config, error) {
 
 func ReadConfig() (config Config) {
 	var conf Config
-	if _, err := toml.DecodeFile(os.Getenv("GOPATH")+"/src/github.com/marove2000/hack-and-pay/misc/config/config.toml", &conf); err != nil {
+	if _, err := toml.DecodeFile(os.Getenv("GOPATH")+"/src/github.com/tally-it/tallyd/misc/config/config.toml", &conf); err != nil {
 		println(err)
 	}
 	return conf

@@ -5,11 +5,11 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/marove2000/hack-and-pay/errors"
+	"github.com/tally-it/tallyd/errors"
 	"encoding/json"
 	"github.com/go-validator/validator"
-	"github.com/marove2000/hack-and-pay/contract"
-	"github.com/marove2000/hack-and-pay/ctxutil"
+	"github.com/tally-it/tallyd/contract"
+	"github.com/tally-it/tallyd/ctxutil"
 )
 
 func (h *Handler) productIndex(ctx context.Context, r *http.Request, pathParams map[string]string) (interface{}, error) {

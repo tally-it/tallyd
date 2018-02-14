@@ -25,10 +25,10 @@
 package handler
 
 import (
-	"github.com/marove2000/hack-and-pay/log"
-	"github.com/marove2000/hack-and-pay/repository/ldap"
-	"github.com/marove2000/hack-and-pay/repository/sql"
-	"github.com/marove2000/hack-and-pay/router"
+	"github.com/tally-it/tallyd/log"
+	"github.com/tally-it/tallyd/repository/ldap"
+	"github.com/tally-it/tallyd/repository/sql"
+	"github.com/tally-it/tallyd/router"
 )
 
 var pkgLogger = log.New("handler")

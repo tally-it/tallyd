@@ -7,10 +7,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/marove2000/hack-and-pay/config"
-	"github.com/marove2000/hack-and-pay/contract"
-	"github.com/marove2000/hack-and-pay/ctxutil"
-	"github.com/marove2000/hack-and-pay/errors"
+	"github.com/tally-it/tallyd/config"
+	"github.com/tally-it/tallyd/contract"
+	"github.com/tally-it/tallyd/ctxutil"
+	"github.com/tally-it/tallyd/errors"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/go-validator/validator"

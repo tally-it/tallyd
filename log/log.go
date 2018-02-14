@@ -5,7 +5,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/marove2000/hack-and-pay/ctxutil"
+	"github.com/tally-it/tallyd/ctxutil"
 
 	"github.com/sirupsen/logrus"
 	"github.com/x-cray/logrus-prefixed-formatter"

@@ -5,9 +5,9 @@ import (
 	"crypto/tls"
 	"strconv"
 
-	"github.com/marove2000/hack-and-pay/config"
-	"github.com/marove2000/hack-and-pay/errors"
-	"github.com/marove2000/hack-and-pay/log"
+	"github.com/tally-it/tallyd/config"
+	"github.com/tally-it/tallyd/errors"
+	"github.com/tally-it/tallyd/log"
 
 	"gopkg.in/ldap.v2"
 	"crypto/x509"
