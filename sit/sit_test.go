@@ -121,9 +121,9 @@ func transactionAdd(t *testing.T, token string, userId int, value float64) {
 	"value":`+fmt.Sprint(value)+`
 }
 `))
-	r.Header.Set("Authorization", "Bearer: "+token)
-
 	require.NoError(t, err)
+
+	r.Header.Set("Authorization", "Bearer: "+token)
 
 	c := http.Client{
 		Timeout: time.Second * 5,
