@@ -18,64 +18,37 @@ import (
 	"github.com/vattle/sqlboiler/queries"
 	"github.com/vattle/sqlboiler/queries/qm"
 	"github.com/vattle/sqlboiler/strmangle"
-	"gopkg.in/nullbio/null.v6"
 )
 
 // Product is an object representing the database table.
 type Product struct {
-	ProductID    int         `boil:"product_id" json:"product_id" toml:"product_id" yaml:"product_id"`
-	SKUID        int         `boil:"SKU_id" json:"SKU_id" toml:"SKU_id" yaml:"SKU_id"`
-	Name         string      `boil:"name" json:"name" toml:"name" yaml:"name"`
-	GTIN         null.String `boil:"GTIN" json:"GTIN,omitempty" toml:"GTIN" yaml:"GTIN,omitempty"`
-	Price        string      `boil:"price" json:"price" toml:"price" yaml:"price"`
-	AddedAt      time.Time   `boil:"added_at" json:"added_at" toml:"added_at" yaml:"added_at"`
-	DeletedAt    null.Time   `boil:"deleted_at" json:"deleted_at,omitempty" toml:"deleted_at" yaml:"deleted_at,omitempty"`
-	IsVisible    string      `boil:"is_visible" json:"is_visible" toml:"is_visible" yaml:"is_visible"`
-	Quantity     null.String `boil:"quantity" json:"quantity,omitempty" toml:"quantity" yaml:"quantity,omitempty"`
-	QuantityUnit null.String `boil:"quantity_unit" json:"quantity_unit,omitempty" toml:"quantity_unit" yaml:"quantity_unit,omitempty"`
+	ProductID int `boil:"product_id" json:"product_id" toml:"product_id" yaml:"product_id"`
 
 	R *productR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L productL  `boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
 var ProductColumns = struct {
-	ProductID    string
-	SKUID        string
-	Name         string
-	GTIN         string
-	Price        string
-	AddedAt      string
-	DeletedAt    string
-	IsVisible    string
-	Quantity     string
-	QuantityUnit string
+	ProductID string
 }{
-	ProductID:    "product_id",
-	SKUID:        "SKU_id",
-	Name:         "name",
-	GTIN:         "GTIN",
-	Price:        "price",
-	AddedAt:      "added_at",
-	DeletedAt:    "deleted_at",
-	IsVisible:    "is_visible",
-	Quantity:     "quantity",
-	QuantityUnit: "quantity_unit",
+	ProductID: "product_id",
 }
 
 // productR is where relationships are stored.
 type productR struct {
 	Categories      CategorySlice
-	SKUStocks       StockSlice
-	SKUTransactions TransactionSlice
+	ProductVersions ProductVersionSlice
+	Stocks          StockSlice
+	Transactions    TransactionSlice
 }
 
 // productL is where Load methods for each relationship are stored.
 type productL struct{}
 
 var (
-	productColumns               = []string{"product_id", "SKU_id", "name", "GTIN", "price", "added_at", "deleted_at", "is_visible", "quantity", "quantity_unit"}
-	productColumnsWithoutDefault = []string{"SKU_id", "name", "GTIN", "price", "deleted_at", "quantity", "quantity_unit"}
-	productColumnsWithDefault    = []string{"product_id", "added_at", "is_visible"}
+	productColumns               = []string{"product_id"}
+	productColumnsWithoutDefault = []string{}
+	productColumnsWithDefault    = []string{"product_id"}
 	productPrimaryKeyColumns     = []string{"product_id"}
 )
 
@@ -235,20 +208,46 @@ func (o *Product) Categories(exec boil.Executor, mods ...qm.QueryMod) categoryQu
 	return query
 }
 
-// SKUStocksG retrieves all the stock's stock via SKU_id column.
-func (o *Product) SKUStocksG(mods ...qm.QueryMod) stockQuery {
-	return o.SKUStocks(boil.GetDB(), mods...)
+// ProductVersionsG retrieves all the product_version's product versions.
+func (o *Product) ProductVersionsG(mods ...qm.QueryMod) productVersionQuery {
+	return o.ProductVersions(boil.GetDB(), mods...)
 }
 
-// SKUStocks retrieves all the stock's stock with an executor via SKU_id column.
-func (o *Product) SKUStocks(exec boil.Executor, mods ...qm.QueryMod) stockQuery {
+// ProductVersions retrieves all the product_version's product versions with an executor.
+func (o *Product) ProductVersions(exec boil.Executor, mods ...qm.QueryMod) productVersionQuery {
 	var queryMods []qm.QueryMod
 	if len(mods) != 0 {
 		queryMods = append(queryMods, mods...)
 	}
 
 	queryMods = append(queryMods,
-		qm.Where("`stock`.`SKU_id`=?", o.SKUID),
+		qm.Where("`product_versions`.`product_id`=?", o.ProductID),
+	)
+
+	query := ProductVersions(exec, queryMods...)
+	queries.SetFrom(query.Query, "`product_versions`")
+
+	if len(queries.GetSelect(query.Query)) == 0 {
+		queries.SetSelect(query.Query, []string{"`product_versions`.*"})
+	}
+
+	return query
+}
+
+// StocksG retrieves all the stock's stock.
+func (o *Product) StocksG(mods ...qm.QueryMod) stockQuery {
+	return o.Stocks(boil.GetDB(), mods...)
+}
+
+// Stocks retrieves all the stock's stock with an executor.
+func (o *Product) Stocks(exec boil.Executor, mods ...qm.QueryMod) stockQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("`stock`.`product_id`=?", o.ProductID),
 	)
 
 	query := Stocks(exec, queryMods...)
@@ -261,20 +260,20 @@ func (o *Product) SKUStocks(exec boil.Executor, mods ...qm.QueryMod) stockQuery 
 	return query
 }
 
-// SKUTransactionsG retrieves all the transaction's transactions via SKU_id column.
-func (o *Product) SKUTransactionsG(mods ...qm.QueryMod) transactionQuery {
-	return o.SKUTransactions(boil.GetDB(), mods...)
+// TransactionsG retrieves all the transaction's transactions.
+func (o *Product) TransactionsG(mods ...qm.QueryMod) transactionQuery {
+	return o.Transactions(boil.GetDB(), mods...)
 }
 
-// SKUTransactions retrieves all the transaction's transactions with an executor via SKU_id column.
-func (o *Product) SKUTransactions(exec boil.Executor, mods ...qm.QueryMod) transactionQuery {
+// Transactions retrieves all the transaction's transactions with an executor.
+func (o *Product) Transactions(exec boil.Executor, mods ...qm.QueryMod) transactionQuery {
 	var queryMods []qm.QueryMod
 	if len(mods) != 0 {
 		queryMods = append(queryMods, mods...)
 	}
 
 	queryMods = append(queryMods,
-		qm.Where("`transactions`.`SKU_id`=?", o.SKUID),
+		qm.Where("`transactions`.`product_id`=?", o.ProductID),
 	)
 
 	query := Transactions(exec, queryMods...)
@@ -368,9 +367,9 @@ func (productL) LoadCategories(e boil.Executor, singular bool, maybeProduct inte
 	return nil
 }
 
-// LoadSKUStocks allows an eager lookup of values, cached into the
+// LoadProductVersions allows an eager lookup of values, cached into the
 // loaded structs of the objects.
-func (productL) LoadSKUStocks(e boil.Executor, singular bool, maybeProduct interface{}) error {
+func (productL) LoadProductVersions(e boil.Executor, singular bool, maybeProduct interface{}) error {
 	var slice []*Product
 	var object *Product
 
@@ -387,18 +386,83 @@ func (productL) LoadSKUStocks(e boil.Executor, singular bool, maybeProduct inter
 		if object.R == nil {
 			object.R = &productR{}
 		}
-		args[0] = object.SKUID
+		args[0] = object.ProductID
 	} else {
 		for i, obj := range slice {
 			if obj.R == nil {
 				obj.R = &productR{}
 			}
-			args[i] = obj.SKUID
+			args[i] = obj.ProductID
 		}
 	}
 
 	query := fmt.Sprintf(
-		"select * from `stock` where `SKU_id` in (%s)",
+		"select * from `product_versions` where `product_id` in (%s)",
+		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
+	)
+	if boil.DebugMode {
+		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
+	}
+
+	results, err := e.Query(query, args...)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load product_versions")
+	}
+	defer results.Close()
+
+	var resultSlice []*ProductVersion
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice product_versions")
+	}
+
+	if singular {
+		object.R.ProductVersions = resultSlice
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.ProductID == foreign.ProductID {
+				local.R.ProductVersions = append(local.R.ProductVersions, foreign)
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadStocks allows an eager lookup of values, cached into the
+// loaded structs of the objects.
+func (productL) LoadStocks(e boil.Executor, singular bool, maybeProduct interface{}) error {
+	var slice []*Product
+	var object *Product
+
+	count := 1
+	if singular {
+		object = maybeProduct.(*Product)
+	} else {
+		slice = *maybeProduct.(*[]*Product)
+		count = len(slice)
+	}
+
+	args := make([]interface{}, count)
+	if singular {
+		if object.R == nil {
+			object.R = &productR{}
+		}
+		args[0] = object.ProductID
+	} else {
+		for i, obj := range slice {
+			if obj.R == nil {
+				obj.R = &productR{}
+			}
+			args[i] = obj.ProductID
+		}
+	}
+
+	query := fmt.Sprintf(
+		"select * from `stock` where `product_id` in (%s)",
 		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
 	)
 	if boil.DebugMode {
@@ -417,14 +481,14 @@ func (productL) LoadSKUStocks(e boil.Executor, singular bool, maybeProduct inter
 	}
 
 	if singular {
-		object.R.SKUStocks = resultSlice
+		object.R.Stocks = resultSlice
 		return nil
 	}
 
 	for _, foreign := range resultSlice {
 		for _, local := range slice {
-			if local.SKUID == foreign.SKUID {
-				local.R.SKUStocks = append(local.R.SKUStocks, foreign)
+			if local.ProductID == foreign.ProductID {
+				local.R.Stocks = append(local.R.Stocks, foreign)
 				break
 			}
 		}
@@ -433,9 +497,9 @@ func (productL) LoadSKUStocks(e boil.Executor, singular bool, maybeProduct inter
 	return nil
 }
 
-// LoadSKUTransactions allows an eager lookup of values, cached into the
+// LoadTransactions allows an eager lookup of values, cached into the
 // loaded structs of the objects.
-func (productL) LoadSKUTransactions(e boil.Executor, singular bool, maybeProduct interface{}) error {
+func (productL) LoadTransactions(e boil.Executor, singular bool, maybeProduct interface{}) error {
 	var slice []*Product
 	var object *Product
 
@@ -452,18 +516,18 @@ func (productL) LoadSKUTransactions(e boil.Executor, singular bool, maybeProduct
 		if object.R == nil {
 			object.R = &productR{}
 		}
-		args[0] = object.SKUID
+		args[0] = object.ProductID
 	} else {
 		for i, obj := range slice {
 			if obj.R == nil {
 				obj.R = &productR{}
 			}
-			args[i] = obj.SKUID
+			args[i] = obj.ProductID
 		}
 	}
 
 	query := fmt.Sprintf(
-		"select * from `transactions` where `SKU_id` in (%s)",
+		"select * from `transactions` where `product_id` in (%s)",
 		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
 	)
 	if boil.DebugMode {
@@ -482,14 +546,14 @@ func (productL) LoadSKUTransactions(e boil.Executor, singular bool, maybeProduct
 	}
 
 	if singular {
-		object.R.SKUTransactions = resultSlice
+		object.R.Transactions = resultSlice
 		return nil
 	}
 
 	for _, foreign := range resultSlice {
 		for _, local := range slice {
-			if local.SKUID == foreign.SKUID.Int {
-				local.R.SKUTransactions = append(local.R.SKUTransactions, foreign)
+			if local.ProductID == foreign.ProductID.Int {
+				local.R.Transactions = append(local.R.Transactions, foreign)
 				break
 			}
 		}
@@ -734,56 +798,140 @@ func removeCategoriesFromProductsSlice(o *Product, related []*Category) {
 	}
 }
 
-// AddSKUStocksG adds the given related objects to the existing relationships
+// AddProductVersionsG adds the given related objects to the existing relationships
 // of the product, optionally inserting them as new records.
-// Appends related to o.R.SKUStocks.
-// Sets related.R.SKU appropriately.
+// Appends related to o.R.ProductVersions.
+// Sets related.R.Product appropriately.
 // Uses the global database handle.
-func (o *Product) AddSKUStocksG(insert bool, related ...*Stock) error {
-	return o.AddSKUStocks(boil.GetDB(), insert, related...)
+func (o *Product) AddProductVersionsG(insert bool, related ...*ProductVersion) error {
+	return o.AddProductVersions(boil.GetDB(), insert, related...)
 }
 
-// AddSKUStocksP adds the given related objects to the existing relationships
+// AddProductVersionsP adds the given related objects to the existing relationships
 // of the product, optionally inserting them as new records.
-// Appends related to o.R.SKUStocks.
-// Sets related.R.SKU appropriately.
+// Appends related to o.R.ProductVersions.
+// Sets related.R.Product appropriately.
 // Panics on error.
-func (o *Product) AddSKUStocksP(exec boil.Executor, insert bool, related ...*Stock) {
-	if err := o.AddSKUStocks(exec, insert, related...); err != nil {
+func (o *Product) AddProductVersionsP(exec boil.Executor, insert bool, related ...*ProductVersion) {
+	if err := o.AddProductVersions(exec, insert, related...); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// AddSKUStocksGP adds the given related objects to the existing relationships
+// AddProductVersionsGP adds the given related objects to the existing relationships
 // of the product, optionally inserting them as new records.
-// Appends related to o.R.SKUStocks.
-// Sets related.R.SKU appropriately.
+// Appends related to o.R.ProductVersions.
+// Sets related.R.Product appropriately.
 // Uses the global database handle and panics on error.
-func (o *Product) AddSKUStocksGP(insert bool, related ...*Stock) {
-	if err := o.AddSKUStocks(boil.GetDB(), insert, related...); err != nil {
+func (o *Product) AddProductVersionsGP(insert bool, related ...*ProductVersion) {
+	if err := o.AddProductVersions(boil.GetDB(), insert, related...); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// AddSKUStocks adds the given related objects to the existing relationships
+// AddProductVersions adds the given related objects to the existing relationships
 // of the product, optionally inserting them as new records.
-// Appends related to o.R.SKUStocks.
-// Sets related.R.SKU appropriately.
-func (o *Product) AddSKUStocks(exec boil.Executor, insert bool, related ...*Stock) error {
+// Appends related to o.R.ProductVersions.
+// Sets related.R.Product appropriately.
+func (o *Product) AddProductVersions(exec boil.Executor, insert bool, related ...*ProductVersion) error {
 	var err error
 	for _, rel := range related {
 		if insert {
-			rel.SKUID = o.SKUID
+			rel.ProductID = o.ProductID
+			if err = rel.Insert(exec); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE `product_versions` SET %s WHERE %s",
+				strmangle.SetParamNames("`", "`", 0, []string{"product_id"}),
+				strmangle.WhereClause("`", "`", 0, productVersionPrimaryKeyColumns),
+			)
+			values := []interface{}{o.ProductID, rel.ProductVersionID}
+
+			if boil.DebugMode {
+				fmt.Fprintln(boil.DebugWriter, updateQuery)
+				fmt.Fprintln(boil.DebugWriter, values)
+			}
+
+			if _, err = exec.Exec(updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.ProductID = o.ProductID
+		}
+	}
+
+	if o.R == nil {
+		o.R = &productR{
+			ProductVersions: related,
+		}
+	} else {
+		o.R.ProductVersions = append(o.R.ProductVersions, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &productVersionR{
+				Product: o,
+			}
+		} else {
+			rel.R.Product = o
+		}
+	}
+	return nil
+}
+
+// AddStocksG adds the given related objects to the existing relationships
+// of the product, optionally inserting them as new records.
+// Appends related to o.R.Stocks.
+// Sets related.R.Product appropriately.
+// Uses the global database handle.
+func (o *Product) AddStocksG(insert bool, related ...*Stock) error {
+	return o.AddStocks(boil.GetDB(), insert, related...)
+}
+
+// AddStocksP adds the given related objects to the existing relationships
+// of the product, optionally inserting them as new records.
+// Appends related to o.R.Stocks.
+// Sets related.R.Product appropriately.
+// Panics on error.
+func (o *Product) AddStocksP(exec boil.Executor, insert bool, related ...*Stock) {
+	if err := o.AddStocks(exec, insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// AddStocksGP adds the given related objects to the existing relationships
+// of the product, optionally inserting them as new records.
+// Appends related to o.R.Stocks.
+// Sets related.R.Product appropriately.
+// Uses the global database handle and panics on error.
+func (o *Product) AddStocksGP(insert bool, related ...*Stock) {
+	if err := o.AddStocks(boil.GetDB(), insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// AddStocks adds the given related objects to the existing relationships
+// of the product, optionally inserting them as new records.
+// Appends related to o.R.Stocks.
+// Sets related.R.Product appropriately.
+func (o *Product) AddStocks(exec boil.Executor, insert bool, related ...*Stock) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.ProductID = o.ProductID
 			if err = rel.Insert(exec); err != nil {
 				return errors.Wrap(err, "failed to insert into foreign table")
 			}
 		} else {
 			updateQuery := fmt.Sprintf(
 				"UPDATE `stock` SET %s WHERE %s",
-				strmangle.SetParamNames("`", "`", 0, []string{"SKU_id"}),
+				strmangle.SetParamNames("`", "`", 0, []string{"product_id"}),
 				strmangle.WhereClause("`", "`", 0, stockPrimaryKeyColumns),
 			)
-			values := []interface{}{o.SKUID, rel.StockID}
+			values := []interface{}{o.ProductID, rel.StockID}
 
 			if boil.DebugMode {
 				fmt.Fprintln(boil.DebugWriter, updateQuery)
@@ -794,81 +942,81 @@ func (o *Product) AddSKUStocks(exec boil.Executor, insert bool, related ...*Stoc
 				return errors.Wrap(err, "failed to update foreign table")
 			}
 
-			rel.SKUID = o.SKUID
+			rel.ProductID = o.ProductID
 		}
 	}
 
 	if o.R == nil {
 		o.R = &productR{
-			SKUStocks: related,
+			Stocks: related,
 		}
 	} else {
-		o.R.SKUStocks = append(o.R.SKUStocks, related...)
+		o.R.Stocks = append(o.R.Stocks, related...)
 	}
 
 	for _, rel := range related {
 		if rel.R == nil {
 			rel.R = &stockR{
-				SKU: o,
+				Product: o,
 			}
 		} else {
-			rel.R.SKU = o
+			rel.R.Product = o
 		}
 	}
 	return nil
 }
 
-// AddSKUTransactionsG adds the given related objects to the existing relationships
+// AddTransactionsG adds the given related objects to the existing relationships
 // of the product, optionally inserting them as new records.
-// Appends related to o.R.SKUTransactions.
-// Sets related.R.SKU appropriately.
+// Appends related to o.R.Transactions.
+// Sets related.R.Product appropriately.
 // Uses the global database handle.
-func (o *Product) AddSKUTransactionsG(insert bool, related ...*Transaction) error {
-	return o.AddSKUTransactions(boil.GetDB(), insert, related...)
+func (o *Product) AddTransactionsG(insert bool, related ...*Transaction) error {
+	return o.AddTransactions(boil.GetDB(), insert, related...)
 }
 
-// AddSKUTransactionsP adds the given related objects to the existing relationships
+// AddTransactionsP adds the given related objects to the existing relationships
 // of the product, optionally inserting them as new records.
-// Appends related to o.R.SKUTransactions.
-// Sets related.R.SKU appropriately.
+// Appends related to o.R.Transactions.
+// Sets related.R.Product appropriately.
 // Panics on error.
-func (o *Product) AddSKUTransactionsP(exec boil.Executor, insert bool, related ...*Transaction) {
-	if err := o.AddSKUTransactions(exec, insert, related...); err != nil {
+func (o *Product) AddTransactionsP(exec boil.Executor, insert bool, related ...*Transaction) {
+	if err := o.AddTransactions(exec, insert, related...); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// AddSKUTransactionsGP adds the given related objects to the existing relationships
+// AddTransactionsGP adds the given related objects to the existing relationships
 // of the product, optionally inserting them as new records.
-// Appends related to o.R.SKUTransactions.
-// Sets related.R.SKU appropriately.
+// Appends related to o.R.Transactions.
+// Sets related.R.Product appropriately.
 // Uses the global database handle and panics on error.
-func (o *Product) AddSKUTransactionsGP(insert bool, related ...*Transaction) {
-	if err := o.AddSKUTransactions(boil.GetDB(), insert, related...); err != nil {
+func (o *Product) AddTransactionsGP(insert bool, related ...*Transaction) {
+	if err := o.AddTransactions(boil.GetDB(), insert, related...); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// AddSKUTransactions adds the given related objects to the existing relationships
+// AddTransactions adds the given related objects to the existing relationships
 // of the product, optionally inserting them as new records.
-// Appends related to o.R.SKUTransactions.
-// Sets related.R.SKU appropriately.
-func (o *Product) AddSKUTransactions(exec boil.Executor, insert bool, related ...*Transaction) error {
+// Appends related to o.R.Transactions.
+// Sets related.R.Product appropriately.
+func (o *Product) AddTransactions(exec boil.Executor, insert bool, related ...*Transaction) error {
 	var err error
 	for _, rel := range related {
 		if insert {
-			rel.SKUID.Int = o.SKUID
-			rel.SKUID.Valid = true
+			rel.ProductID.Int = o.ProductID
+			rel.ProductID.Valid = true
 			if err = rel.Insert(exec); err != nil {
 				return errors.Wrap(err, "failed to insert into foreign table")
 			}
 		} else {
 			updateQuery := fmt.Sprintf(
 				"UPDATE `transactions` SET %s WHERE %s",
-				strmangle.SetParamNames("`", "`", 0, []string{"SKU_id"}),
+				strmangle.SetParamNames("`", "`", 0, []string{"product_id"}),
 				strmangle.WhereClause("`", "`", 0, transactionPrimaryKeyColumns),
 			)
-			values := []interface{}{o.SKUID, rel.TransactionID}
+			values := []interface{}{o.ProductID, rel.TransactionID}
 
 			if boil.DebugMode {
 				fmt.Fprintln(boil.DebugWriter, updateQuery)
@@ -879,77 +1027,77 @@ func (o *Product) AddSKUTransactions(exec boil.Executor, insert bool, related ..
 				return errors.Wrap(err, "failed to update foreign table")
 			}
 
-			rel.SKUID.Int = o.SKUID
-			rel.SKUID.Valid = true
+			rel.ProductID.Int = o.ProductID
+			rel.ProductID.Valid = true
 		}
 	}
 
 	if o.R == nil {
 		o.R = &productR{
-			SKUTransactions: related,
+			Transactions: related,
 		}
 	} else {
-		o.R.SKUTransactions = append(o.R.SKUTransactions, related...)
+		o.R.Transactions = append(o.R.Transactions, related...)
 	}
 
 	for _, rel := range related {
 		if rel.R == nil {
 			rel.R = &transactionR{
-				SKU: o,
+				Product: o,
 			}
 		} else {
-			rel.R.SKU = o
+			rel.R.Product = o
 		}
 	}
 	return nil
 }
 
-// SetSKUTransactionsG removes all previously related items of the
+// SetTransactionsG removes all previously related items of the
 // product replacing them completely with the passed
 // in related items, optionally inserting them as new records.
-// Sets o.R.SKU's SKUTransactions accordingly.
-// Replaces o.R.SKUTransactions with related.
-// Sets related.R.SKU's SKUTransactions accordingly.
+// Sets o.R.Product's Transactions accordingly.
+// Replaces o.R.Transactions with related.
+// Sets related.R.Product's Transactions accordingly.
 // Uses the global database handle.
-func (o *Product) SetSKUTransactionsG(insert bool, related ...*Transaction) error {
-	return o.SetSKUTransactions(boil.GetDB(), insert, related...)
+func (o *Product) SetTransactionsG(insert bool, related ...*Transaction) error {
+	return o.SetTransactions(boil.GetDB(), insert, related...)
 }
 
-// SetSKUTransactionsP removes all previously related items of the
+// SetTransactionsP removes all previously related items of the
 // product replacing them completely with the passed
 // in related items, optionally inserting them as new records.
-// Sets o.R.SKU's SKUTransactions accordingly.
-// Replaces o.R.SKUTransactions with related.
-// Sets related.R.SKU's SKUTransactions accordingly.
+// Sets o.R.Product's Transactions accordingly.
+// Replaces o.R.Transactions with related.
+// Sets related.R.Product's Transactions accordingly.
 // Panics on error.
-func (o *Product) SetSKUTransactionsP(exec boil.Executor, insert bool, related ...*Transaction) {
-	if err := o.SetSKUTransactions(exec, insert, related...); err != nil {
+func (o *Product) SetTransactionsP(exec boil.Executor, insert bool, related ...*Transaction) {
+	if err := o.SetTransactions(exec, insert, related...); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// SetSKUTransactionsGP removes all previously related items of the
+// SetTransactionsGP removes all previously related items of the
 // product replacing them completely with the passed
 // in related items, optionally inserting them as new records.
-// Sets o.R.SKU's SKUTransactions accordingly.
-// Replaces o.R.SKUTransactions with related.
-// Sets related.R.SKU's SKUTransactions accordingly.
+// Sets o.R.Product's Transactions accordingly.
+// Replaces o.R.Transactions with related.
+// Sets related.R.Product's Transactions accordingly.
 // Uses the global database handle and panics on error.
-func (o *Product) SetSKUTransactionsGP(insert bool, related ...*Transaction) {
-	if err := o.SetSKUTransactions(boil.GetDB(), insert, related...); err != nil {
+func (o *Product) SetTransactionsGP(insert bool, related ...*Transaction) {
+	if err := o.SetTransactions(boil.GetDB(), insert, related...); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// SetSKUTransactions removes all previously related items of the
+// SetTransactions removes all previously related items of the
 // product replacing them completely with the passed
 // in related items, optionally inserting them as new records.
-// Sets o.R.SKU's SKUTransactions accordingly.
-// Replaces o.R.SKUTransactions with related.
-// Sets related.R.SKU's SKUTransactions accordingly.
-func (o *Product) SetSKUTransactions(exec boil.Executor, insert bool, related ...*Transaction) error {
-	query := "update `transactions` set `SKU_id` = null where `SKU_id` = ?"
-	values := []interface{}{o.SKUID}
+// Sets o.R.Product's Transactions accordingly.
+// Replaces o.R.Transactions with related.
+// Sets related.R.Product's Transactions accordingly.
+func (o *Product) SetTransactions(exec boil.Executor, insert bool, related ...*Transaction) error {
+	query := "update `transactions` set `product_id` = null where `product_id` = ?"
+	values := []interface{}{o.ProductID}
 	if boil.DebugMode {
 		fmt.Fprintln(boil.DebugWriter, query)
 		fmt.Fprintln(boil.DebugWriter, values)
@@ -961,59 +1109,59 @@ func (o *Product) SetSKUTransactions(exec boil.Executor, insert bool, related ..
 	}
 
 	if o.R != nil {
-		for _, rel := range o.R.SKUTransactions {
-			rel.SKUID.Valid = false
+		for _, rel := range o.R.Transactions {
+			rel.ProductID.Valid = false
 			if rel.R == nil {
 				continue
 			}
 
-			rel.R.SKU = nil
+			rel.R.Product = nil
 		}
 
-		o.R.SKUTransactions = nil
+		o.R.Transactions = nil
 	}
-	return o.AddSKUTransactions(exec, insert, related...)
+	return o.AddTransactions(exec, insert, related...)
 }
 
-// RemoveSKUTransactionsG relationships from objects passed in.
-// Removes related items from R.SKUTransactions (uses pointer comparison, removal does not keep order)
-// Sets related.R.SKU.
+// RemoveTransactionsG relationships from objects passed in.
+// Removes related items from R.Transactions (uses pointer comparison, removal does not keep order)
+// Sets related.R.Product.
 // Uses the global database handle.
-func (o *Product) RemoveSKUTransactionsG(related ...*Transaction) error {
-	return o.RemoveSKUTransactions(boil.GetDB(), related...)
+func (o *Product) RemoveTransactionsG(related ...*Transaction) error {
+	return o.RemoveTransactions(boil.GetDB(), related...)
 }
 
-// RemoveSKUTransactionsP relationships from objects passed in.
-// Removes related items from R.SKUTransactions (uses pointer comparison, removal does not keep order)
-// Sets related.R.SKU.
+// RemoveTransactionsP relationships from objects passed in.
+// Removes related items from R.Transactions (uses pointer comparison, removal does not keep order)
+// Sets related.R.Product.
 // Panics on error.
-func (o *Product) RemoveSKUTransactionsP(exec boil.Executor, related ...*Transaction) {
-	if err := o.RemoveSKUTransactions(exec, related...); err != nil {
+func (o *Product) RemoveTransactionsP(exec boil.Executor, related ...*Transaction) {
+	if err := o.RemoveTransactions(exec, related...); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// RemoveSKUTransactionsGP relationships from objects passed in.
-// Removes related items from R.SKUTransactions (uses pointer comparison, removal does not keep order)
-// Sets related.R.SKU.
+// RemoveTransactionsGP relationships from objects passed in.
+// Removes related items from R.Transactions (uses pointer comparison, removal does not keep order)
+// Sets related.R.Product.
 // Uses the global database handle and panics on error.
-func (o *Product) RemoveSKUTransactionsGP(related ...*Transaction) {
-	if err := o.RemoveSKUTransactions(boil.GetDB(), related...); err != nil {
+func (o *Product) RemoveTransactionsGP(related ...*Transaction) {
+	if err := o.RemoveTransactions(boil.GetDB(), related...); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// RemoveSKUTransactions relationships from objects passed in.
-// Removes related items from R.SKUTransactions (uses pointer comparison, removal does not keep order)
-// Sets related.R.SKU.
-func (o *Product) RemoveSKUTransactions(exec boil.Executor, related ...*Transaction) error {
+// RemoveTransactions relationships from objects passed in.
+// Removes related items from R.Transactions (uses pointer comparison, removal does not keep order)
+// Sets related.R.Product.
+func (o *Product) RemoveTransactions(exec boil.Executor, related ...*Transaction) error {
 	var err error
 	for _, rel := range related {
-		rel.SKUID.Valid = false
+		rel.ProductID.Valid = false
 		if rel.R != nil {
-			rel.R.SKU = nil
+			rel.R.Product = nil
 		}
-		if err = rel.Update(exec, "SKU_id"); err != nil {
+		if err = rel.Update(exec, "product_id"); err != nil {
 			return err
 		}
 	}
@@ -1022,16 +1170,16 @@ func (o *Product) RemoveSKUTransactions(exec boil.Executor, related ...*Transact
 	}
 
 	for _, rel := range related {
-		for i, ri := range o.R.SKUTransactions {
+		for i, ri := range o.R.Transactions {
 			if rel != ri {
 				continue
 			}
 
-			ln := len(o.R.SKUTransactions)
+			ln := len(o.R.Transactions)
 			if ln > 1 && i < ln-1 {
-				o.R.SKUTransactions[i] = o.R.SKUTransactions[ln-1]
+				o.R.Transactions[i] = o.R.Transactions[ln-1]
 			}
-			o.R.SKUTransactions = o.R.SKUTransactions[:ln-1]
+			o.R.Transactions = o.R.Transactions[:ln-1]
 			break
 		}
 	}

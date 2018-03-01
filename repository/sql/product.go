@@ -4,13 +4,13 @@ import (
 	"context"
 	"database/sql"
 
+	"time"
+
 	"github.com/tally-it/tallyd/contract"
 	"github.com/tally-it/tallyd/errors"
 	"github.com/tally-it/tallyd/repository/sql/models"
 
 	"gopkg.in/nullbio/null.v6"
-	"github.com/vattle/sqlboiler/queries/qm"
-	"time"
 )
 
 func (m *Mysql) GetProductsWithStock(ctx context.Context) ([]*contract.Product, error) {
@@ -46,21 +46,6 @@ func (m *Mysql) AddProduct(ctx context.Context, r contract.AddProductRequestBody
 	logger := pkgLogger.ForFunc(ctx, "AddProduct")
 	logger.Debug("enter repo")
 
-	product := models.Product{
-		SKUID:        r.SKU,
-		Name:         r.Name,
-		GTIN:         null.StringFrom(r.GTIN),
-		Price:        r.Price.String(),
-		Quantity:     null.StringFrom(r.Quantity.String()),
-		QuantityUnit: null.StringFrom(r.QuantityUnit),
-	}
-
-	if r.Visibility == true {
-		product.IsVisible = boolToString(true)
-	} else {
-		product.IsVisible = boolToString(false)
-	}
-
 	// start transaction
 	tx, err := m.db.Beginx()
 	defer func() {
@@ -71,19 +56,25 @@ func (m *Mysql) AddProduct(ctx context.Context, r contract.AddProductRequestBody
 		}
 	}()
 
-	// check if product already exists
-	c, err := models.Products(tx, qm.Where("SKU_id=?", r.SKU)).Exists()
+	//add product to generate unique product id
+	product := models.Product{}
+	err = product.Insert(tx)
 	if err != nil {
-		logger.WithError(err).Error("failed to fetch product from db")
+		logger.WithError(err).Error("failed to insert product")
 		return 0, errors.InternalServerError("db error", err)
 	}
 
-	if c == true {
-		logger.WithField("sku", r.SKU).Warn("product already exists")
-		return 0, errors.BadRequest("SKU already exists")
+	productVersion := models.ProductVersion{
+		ProductID:    product.ProductID,
+		Name:         r.Name,
+		GTIN:         null.StringFrom(r.GTIN),
+		Price:        r.Price.String(),
+		Quantity:     null.StringFrom(r.Quantity.String()),
+		QuantityUnit: null.StringFrom(r.QuantityUnit),
+		IsVisible:    boolToString(bool(r.Visibility)),
 	}
 
-	err = product.Insert(tx)
+	err = productVersion.Insert(tx)
 	if err != nil {
 		logger.WithError(err).Error("failed to insert product")
 		return 0, errors.InternalServerError("db error", err)
@@ -100,24 +91,9 @@ func (m *Mysql) AddProduct(ctx context.Context, r contract.AddProductRequestBody
 	return product.ProductID, nil
 }
 
-func (m *Mysql) EditProduct(ctx context.Context, sku int, r contract.AddProductRequestBody) (error) {
+func (m *Mysql) EditProduct(ctx context.Context, productID int, r *contract.AddProductRequestBody) (error) {
 	logger := pkgLogger.ForFunc(ctx, "EditProduct")
 	logger.Debug("enter repo")
-
-	product := models.Product{
-		SKUID:        r.SKU,
-		Name:         r.Name,
-		GTIN:         null.StringFrom(r.GTIN),
-		Price:        r.Price.String(),
-		Quantity:     null.StringFrom(r.Quantity.String()),
-		QuantityUnit: null.StringFrom(r.QuantityUnit),
-	}
-
-	if r.Visibility == true {
-		product.IsVisible = boolToString(true)
-	} else {
-		product.IsVisible = boolToString(false)
-	}
 
 	// start transaction
 	tx, err := m.db.Beginx()
@@ -129,47 +105,35 @@ func (m *Mysql) EditProduct(ctx context.Context, sku int, r contract.AddProductR
 		}
 	}()
 
-	// check if sku is existing
-	c, err := models.Products(tx, qm.Where("SKU_id=?", sku)).Exists()
+	// check if productID is existing
+	c, err := models.ProductExists(tx, productID)
 	if err != nil {
 		logger.WithError(err).Error("failed to fetch product from db")
 		return errors.InternalServerError("db error", err)
 	}
 	if c == false {
-		logger.WithField("sku", sku).Warn("SKU does not exist")
-		return errors.BadRequest("SKU does not exists")
+		logger.WithField("productID", productID).Warn("productID does not exist")
+		return errors.BadRequest("productID does not exists")
 	}
 
 	// TODO: Check if nothing has changed
+	// schau hier, dass du die "check if productID is existing" gleich umbauen kannst auf get productversion, wenn da nichts zurück kommt existiert auch das produkt nicht
+
+	productVersion := models.ProductVersion{
+		ProductID:    productID,
+		Name:         r.Name,
+		GTIN:         null.StringFrom(r.GTIN),
+		Price:        r.Price.String(),
+		Quantity:     null.StringFrom(r.Quantity.String()),
+		QuantityUnit: null.StringFrom(r.QuantityUnit),
+		IsVisible:    boolToString(bool(r.Visibility)),
+	}
+
 	// insert product
-	err = product.Insert(tx)
+	err = productVersion.Insert(tx)
 	if err != nil {
 		logger.WithError(err).Error("failed to insert product")
 		return errors.InternalServerError("db error", err)
-	}
-
-	// update old SKUs if SKU is set in body and not equal old
-	if sku != r.SKU && r.SKU != 0 {
-		// check if new sku is already taken
-		c, err = models.Products(tx, qm.Where("SKU_id=?", r.SKU)).Exists()
-		if err != nil {
-			logger.WithError(err).Error("failed to fetch product from db")
-			return errors.InternalServerError("db error", err)
-		}
-
-		if c == true {
-			logger.WithField("sku", r.SKU).Warn("SKU is already taken")
-			return errors.BadRequest("SKU is already taken")
-		}
-		// get skus to update
-		skuUpdateProducts, err := models.Products(tx, qm.Where("SKU_id=?", sku)).All()
-
-		err = skuUpdateProducts.UpdateAll(tx, models.M{"SKU_id": r.SKU})
-		//err = models.Products(tx, qm.Where("SKU_id=?", sku)).UpdateAll(models.M{"SKU_id": r.SKU})
-		if err != nil {
-			logger.WithError(err).Error("failed to update old skus")
-			return errors.InternalServerError("db error", err)
-		}
 	}
 
 	//TODO add category map
@@ -183,15 +147,14 @@ func (m *Mysql) EditProduct(ctx context.Context, sku int, r contract.AddProductR
 	return nil
 }
 
-func (m *Mysql) GetProductBySKU(ctx context.Context, SKU int) (*contract.Product, error) {
-	logger := pkgLogger.ForFunc(ctx, "GetProductBySKU")
+func (m *Mysql) GetProductByID(ctx context.Context, productID int) (*contract.Product, error) {
+	logger := pkgLogger.ForFunc(ctx, "GetProductByID")
 	logger.Debug("enter repo")
 
 	product := new(contract.Product)
 	err := m.db.Get(product, `
 			SELECT 
 				p1.product_id,
-				p1.SKU_id, 
 				p1.name, 
 				p1.GTIN, 
 				p1.quantity, 
@@ -199,12 +162,11 @@ func (m *Mysql) GetProductBySKU(ctx context.Context, SKU int) (*contract.Product
 				p1.price, 
 				p1.is_visible,
 				COALESCE(SUM(stock.quantity), 0) AS 'stock' 
-			FROM products p1 LEFT JOIN stock ON p1.SKU_id = stock.SKU_id
+			FROM product_versions p1 LEFT JOIN stock ON p1.product_id = stock.product_id
 			WHERE p1.deleted_at IS NULL
-			AND p1.is_visible=1 
-			AND p1.product_id = (SELECT p2.product_id FROM products p2 WHERE p2.SKU_id = p1.SKU_id ORDER BY p2.product_id DESC LIMIT 1)
-			AND p1.SKU_id = ?
-			GROUP BY p1.product_id`, SKU)
+			AND p1.product_id = (SELECT p2.product_id FROM product_versions p2 WHERE p2.product_id = p1.product_id ORDER BY p2.product_version_id DESC LIMIT 1)
+			AND p1.product_id = ?
+			GROUP BY p1.product_version_id`, productID)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -219,31 +181,26 @@ func (m *Mysql) GetProductBySKU(ctx context.Context, SKU int) (*contract.Product
 	return product, nil
 }
 
-func (m *Mysql) DeleteProduct(ctx context.Context, sku int) (error) {
+func (m *Mysql) DeleteProduct(ctx context.Context, productID int) (error) {
 	logger := pkgLogger.ForFunc(ctx, "DeleteProduct")
 	logger.Debug("enter repo")
 
-	// check if sku is existing
-	dbProduct, err := m.GetProductBySKU(ctx, sku)
+	// check if productID is existing
+	dbProduct, err := m.GetProductByID(ctx, productID)
 	if err != nil {
-		logger.WithField("sku", sku).WithError(err).Warn("failed to find product")
+		logger.WithField("productID", productID).WithError(err).Warn("failed to find product")
 		return errors.BadRequest("failed to find product")
 	}
 
-	product := models.Product{
-		SKUID:        dbProduct.SKU,
+	product := models.ProductVersion{
+		ProductID:    dbProduct.ProductID,
 		Name:         dbProduct.Name,
 		GTIN:         null.StringFrom(dbProduct.GTIN),
 		Price:        dbProduct.Price.String(),
 		Quantity:     null.StringFrom(dbProduct.Quantity.String()),
 		QuantityUnit: null.StringFrom(dbProduct.QuantityUnit),
-		DeletedAt: null.TimeFrom(time.Now()),
-	}
-
-	if dbProduct.Visibility == true {
-		product.IsVisible = boolToString(true)
-	} else {
-		product.IsVisible = boolToString(false)
+		DeletedAt:    null.TimeFrom(time.Now()),
+		IsVisible:    boolToString(bool(dbProduct.Visibility)),
 	}
 
 	// delete product
@@ -257,27 +214,26 @@ func (m *Mysql) DeleteProduct(ctx context.Context, sku int) (error) {
 }
 
 func (m *Mysql) ChangeStock(ctx context.Context, r contract.ChangeStockRequestBody) (error) {
-	logger := pkgLogger.ForFunc(ctx, "ChangeProduct")
+	logger := pkgLogger.ForFunc(ctx, "ChangeStock")
 	logger.Debug("enter repo")
 
-
 	// check if sku is existing
-	_, err := m.GetProductBySKU(ctx, r.SKU)
+	_, err := m.GetProductByID(ctx, r.ProductID)
 	if err != nil {
-		logger.WithField("sku", r.SKU).WithError(err).Warn("failed to find product")
+		logger.WithField("productID", r.ProductID).WithError(err).Warn("failed to find product")
 		return errors.BadRequest("failed to find product")
 	}
 
 	stock := models.Stock{
-		SKUID: r.SKU,
-		UserID: null.IntFrom(r.UserID),
-		Quantity: r.Quantity,
+		ProductID: r.ProductID,
+		UserID:    null.IntFrom(r.UserID),
+		Quantity:  r.Quantity,
 	}
 
 	// update stock
 	err = stock.Insert(m.db)
 	if err != nil {
-		logger.WithField("sku", r.SKU).WithError(err).Error("failed to update stock")
+		logger.WithField("productID", r.ProductID).WithError(err).Error("failed to update stock")
 		return errors.InternalServerError("db error", err)
 	}
 

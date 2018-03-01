@@ -25,7 +25,7 @@ import (
 type Transaction struct {
 	TransactionID int         `boil:"transaction_id" json:"transaction_id" toml:"transaction_id" yaml:"transaction_id"`
 	UserID        null.Int    `boil:"user_id" json:"user_id,omitempty" toml:"user_id" yaml:"user_id,omitempty"`
-	SKUID         null.Int    `boil:"SKU_id" json:"SKU_id,omitempty" toml:"SKU_id" yaml:"SKU_id,omitempty"`
+	ProductID     null.Int    `boil:"product_id" json:"product_id,omitempty" toml:"product_id" yaml:"product_id,omitempty"`
 	Value         string      `boil:"value" json:"value" toml:"value" yaml:"value"`
 	Tag           null.String `boil:"tag" json:"tag,omitempty" toml:"tag" yaml:"tag,omitempty"`
 	AddedAt       time.Time   `boil:"added_at" json:"added_at" toml:"added_at" yaml:"added_at"`
@@ -38,7 +38,7 @@ type Transaction struct {
 var TransactionColumns = struct {
 	TransactionID string
 	UserID        string
-	SKUID         string
+	ProductID     string
 	Value         string
 	Tag           string
 	AddedAt       string
@@ -46,7 +46,7 @@ var TransactionColumns = struct {
 }{
 	TransactionID: "transaction_id",
 	UserID:        "user_id",
-	SKUID:         "SKU_id",
+	ProductID:     "product_id",
 	Value:         "value",
 	Tag:           "tag",
 	AddedAt:       "added_at",
@@ -55,16 +55,16 @@ var TransactionColumns = struct {
 
 // transactionR is where relationships are stored.
 type transactionR struct {
-	User *User
-	SKU  *Product
+	User    *User
+	Product *Product
 }
 
 // transactionL is where Load methods for each relationship are stored.
 type transactionL struct{}
 
 var (
-	transactionColumns               = []string{"transaction_id", "user_id", "SKU_id", "value", "tag", "added_at", "updated_at"}
-	transactionColumnsWithoutDefault = []string{"user_id", "SKU_id", "value", "tag", "updated_at"}
+	transactionColumns               = []string{"transaction_id", "user_id", "product_id", "value", "tag", "added_at", "updated_at"}
+	transactionColumnsWithoutDefault = []string{"user_id", "product_id", "value", "tag", "updated_at"}
 	transactionColumnsWithDefault    = []string{"transaction_id", "added_at"}
 	transactionPrimaryKeyColumns     = []string{"transaction_id"}
 )
@@ -217,15 +217,15 @@ func (o *Transaction) User(exec boil.Executor, mods ...qm.QueryMod) userQuery {
 	return query
 }
 
-// SKUG pointed to by the foreign key.
-func (o *Transaction) SKUG(mods ...qm.QueryMod) productQuery {
-	return o.SKU(boil.GetDB(), mods...)
+// ProductG pointed to by the foreign key.
+func (o *Transaction) ProductG(mods ...qm.QueryMod) productQuery {
+	return o.Product(boil.GetDB(), mods...)
 }
 
-// SKU pointed to by the foreign key.
-func (o *Transaction) SKU(exec boil.Executor, mods ...qm.QueryMod) productQuery {
+// Product pointed to by the foreign key.
+func (o *Transaction) Product(exec boil.Executor, mods ...qm.QueryMod) productQuery {
 	queryMods := []qm.QueryMod{
-		qm.Where("SKU_id=?", o.SKUID),
+		qm.Where("product_id=?", o.ProductID),
 	}
 
 	queryMods = append(queryMods, mods...)
@@ -304,9 +304,9 @@ func (transactionL) LoadUser(e boil.Executor, singular bool, maybeTransaction in
 	return nil
 }
 
-// LoadSKU allows an eager lookup of values, cached into the
+// LoadProduct allows an eager lookup of values, cached into the
 // loaded structs of the objects.
-func (transactionL) LoadSKU(e boil.Executor, singular bool, maybeTransaction interface{}) error {
+func (transactionL) LoadProduct(e boil.Executor, singular bool, maybeTransaction interface{}) error {
 	var slice []*Transaction
 	var object *Transaction
 
@@ -323,18 +323,18 @@ func (transactionL) LoadSKU(e boil.Executor, singular bool, maybeTransaction int
 		if object.R == nil {
 			object.R = &transactionR{}
 		}
-		args[0] = object.SKUID
+		args[0] = object.ProductID
 	} else {
 		for i, obj := range slice {
 			if obj.R == nil {
 				obj.R = &transactionR{}
 			}
-			args[i] = obj.SKUID
+			args[i] = obj.ProductID
 		}
 	}
 
 	query := fmt.Sprintf(
-		"select * from `products` where `SKU_id` in (%s)",
+		"select * from `products` where `product_id` in (%s)",
 		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
 	)
 
@@ -358,14 +358,14 @@ func (transactionL) LoadSKU(e boil.Executor, singular bool, maybeTransaction int
 	}
 
 	if singular {
-		object.R.SKU = resultSlice[0]
+		object.R.Product = resultSlice[0]
 		return nil
 	}
 
 	for _, local := range slice {
 		for _, foreign := range resultSlice {
-			if local.SKUID.Int == foreign.SKUID {
-				local.R.SKU = foreign
+			if local.ProductID.Int == foreign.ProductID {
+				local.R.Product = foreign
 				break
 			}
 		}
@@ -511,38 +511,38 @@ func (o *Transaction) RemoveUser(exec boil.Executor, related *User) error {
 	return nil
 }
 
-// SetSKUG of the transaction to the related item.
-// Sets o.R.SKU to related.
-// Adds o to related.R.SKUTransactions.
+// SetProductG of the transaction to the related item.
+// Sets o.R.Product to related.
+// Adds o to related.R.Transactions.
 // Uses the global database handle.
-func (o *Transaction) SetSKUG(insert bool, related *Product) error {
-	return o.SetSKU(boil.GetDB(), insert, related)
+func (o *Transaction) SetProductG(insert bool, related *Product) error {
+	return o.SetProduct(boil.GetDB(), insert, related)
 }
 
-// SetSKUP of the transaction to the related item.
-// Sets o.R.SKU to related.
-// Adds o to related.R.SKUTransactions.
+// SetProductP of the transaction to the related item.
+// Sets o.R.Product to related.
+// Adds o to related.R.Transactions.
 // Panics on error.
-func (o *Transaction) SetSKUP(exec boil.Executor, insert bool, related *Product) {
-	if err := o.SetSKU(exec, insert, related); err != nil {
+func (o *Transaction) SetProductP(exec boil.Executor, insert bool, related *Product) {
+	if err := o.SetProduct(exec, insert, related); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// SetSKUGP of the transaction to the related item.
-// Sets o.R.SKU to related.
-// Adds o to related.R.SKUTransactions.
+// SetProductGP of the transaction to the related item.
+// Sets o.R.Product to related.
+// Adds o to related.R.Transactions.
 // Uses the global database handle and panics on error.
-func (o *Transaction) SetSKUGP(insert bool, related *Product) {
-	if err := o.SetSKU(boil.GetDB(), insert, related); err != nil {
+func (o *Transaction) SetProductGP(insert bool, related *Product) {
+	if err := o.SetProduct(boil.GetDB(), insert, related); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// SetSKU of the transaction to the related item.
-// Sets o.R.SKU to related.
-// Adds o to related.R.SKUTransactions.
-func (o *Transaction) SetSKU(exec boil.Executor, insert bool, related *Product) error {
+// SetProduct of the transaction to the related item.
+// Sets o.R.Product to related.
+// Adds o to related.R.Transactions.
+func (o *Transaction) SetProduct(exec boil.Executor, insert bool, related *Product) error {
 	var err error
 	if insert {
 		if err = related.Insert(exec); err != nil {
@@ -552,10 +552,10 @@ func (o *Transaction) SetSKU(exec boil.Executor, insert bool, related *Product) 
 
 	updateQuery := fmt.Sprintf(
 		"UPDATE `transactions` SET %s WHERE %s",
-		strmangle.SetParamNames("`", "`", 0, []string{"SKU_id"}),
+		strmangle.SetParamNames("`", "`", 0, []string{"product_id"}),
 		strmangle.WhereClause("`", "`", 0, transactionPrimaryKeyColumns),
 	)
-	values := []interface{}{related.SKUID, o.TransactionID}
+	values := []interface{}{related.ProductID, o.TransactionID}
 
 	if boil.DebugMode {
 		fmt.Fprintln(boil.DebugWriter, updateQuery)
@@ -566,83 +566,83 @@ func (o *Transaction) SetSKU(exec boil.Executor, insert bool, related *Product) 
 		return errors.Wrap(err, "failed to update local table")
 	}
 
-	o.SKUID.Int = related.SKUID
-	o.SKUID.Valid = true
+	o.ProductID.Int = related.ProductID
+	o.ProductID.Valid = true
 
 	if o.R == nil {
 		o.R = &transactionR{
-			SKU: related,
+			Product: related,
 		}
 	} else {
-		o.R.SKU = related
+		o.R.Product = related
 	}
 
 	if related.R == nil {
 		related.R = &productR{
-			SKUTransactions: TransactionSlice{o},
+			Transactions: TransactionSlice{o},
 		}
 	} else {
-		related.R.SKUTransactions = append(related.R.SKUTransactions, o)
+		related.R.Transactions = append(related.R.Transactions, o)
 	}
 
 	return nil
 }
 
-// RemoveSKUG relationship.
-// Sets o.R.SKU to nil.
+// RemoveProductG relationship.
+// Sets o.R.Product to nil.
 // Removes o from all passed in related items' relationships struct (Optional).
 // Uses the global database handle.
-func (o *Transaction) RemoveSKUG(related *Product) error {
-	return o.RemoveSKU(boil.GetDB(), related)
+func (o *Transaction) RemoveProductG(related *Product) error {
+	return o.RemoveProduct(boil.GetDB(), related)
 }
 
-// RemoveSKUP relationship.
-// Sets o.R.SKU to nil.
+// RemoveProductP relationship.
+// Sets o.R.Product to nil.
 // Removes o from all passed in related items' relationships struct (Optional).
 // Panics on error.
-func (o *Transaction) RemoveSKUP(exec boil.Executor, related *Product) {
-	if err := o.RemoveSKU(exec, related); err != nil {
+func (o *Transaction) RemoveProductP(exec boil.Executor, related *Product) {
+	if err := o.RemoveProduct(exec, related); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// RemoveSKUGP relationship.
-// Sets o.R.SKU to nil.
+// RemoveProductGP relationship.
+// Sets o.R.Product to nil.
 // Removes o from all passed in related items' relationships struct (Optional).
 // Uses the global database handle and panics on error.
-func (o *Transaction) RemoveSKUGP(related *Product) {
-	if err := o.RemoveSKU(boil.GetDB(), related); err != nil {
+func (o *Transaction) RemoveProductGP(related *Product) {
+	if err := o.RemoveProduct(boil.GetDB(), related); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// RemoveSKU relationship.
-// Sets o.R.SKU to nil.
+// RemoveProduct relationship.
+// Sets o.R.Product to nil.
 // Removes o from all passed in related items' relationships struct (Optional).
-func (o *Transaction) RemoveSKU(exec boil.Executor, related *Product) error {
+func (o *Transaction) RemoveProduct(exec boil.Executor, related *Product) error {
 	var err error
 
-	o.SKUID.Valid = false
-	if err = o.Update(exec, "SKU_id"); err != nil {
-		o.SKUID.Valid = true
+	o.ProductID.Valid = false
+	if err = o.Update(exec, "product_id"); err != nil {
+		o.ProductID.Valid = true
 		return errors.Wrap(err, "failed to update local table")
 	}
 
-	o.R.SKU = nil
+	o.R.Product = nil
 	if related == nil || related.R == nil {
 		return nil
 	}
 
-	for i, ri := range related.R.SKUTransactions {
-		if o.SKUID.Int != ri.SKUID.Int {
+	for i, ri := range related.R.Transactions {
+		if o.ProductID.Int != ri.ProductID.Int {
 			continue
 		}
 
-		ln := len(related.R.SKUTransactions)
+		ln := len(related.R.Transactions)
 		if ln > 1 && i < ln-1 {
-			related.R.SKUTransactions[i] = related.R.SKUTransactions[ln-1]
+			related.R.Transactions[i] = related.R.Transactions[ln-1]
 		}
-		related.R.SKUTransactions = related.R.SKUTransactions[:ln-1]
+		related.R.Transactions = related.R.Transactions[:ln-1]
 		break
 	}
 	return nil

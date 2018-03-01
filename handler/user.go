@@ -179,6 +179,9 @@ func (h *Handler) addTransaction(ctx context.Context, r *http.Request, pathParam
 	logger := pkgLogger.ForFunc(ctx, "addTransaction")
 	logger.Debug("enter handler")
 
+	//TODO warum wird in der url und im body die ID übergeben?
+	//TODO implementation von user to user transaction fehlt noch
+
 	// read id
 	userID := pathParams["id"]
 	id, err := strconv.Atoi(userID)
@@ -203,12 +206,12 @@ func (h *Handler) addTransaction(ctx context.Context, r *http.Request, pathParam
 	}
 
 	switch {
-	case transaction.SKU != 0 && transaction.Value.Cmp(decimal.Zero) != 0:
-		logger.Warn("both SKU and value are set")
-		return nil, errors.BadRequest("both SKU and value are set")
-	case transaction.SKU == 0 && transaction.Value.Cmp(decimal.Zero) == 0:
-		logger.Warn("both SKU and value are zero")
-		return nil, errors.BadRequest("both SKU and value are zero")
+	case transaction.ProductID != 0 && transaction.Value.Cmp(decimal.Zero) != 0:
+		logger.Warn("both ProductID and value are set")
+		return nil, errors.BadRequest("both ProductID and value are set")
+	case transaction.ProductID == 0 && transaction.Value.Cmp(decimal.Zero) == 0:
+		logger.Warn("both ProductID and value are zero")
+		return nil, errors.BadRequest("both ProductID and value are zero")
 	}
 
 	if (id == ctxutil.GetUserID(ctx) && id == transaction.UserID) || ctxutil.GetAdminStatus(ctx) {

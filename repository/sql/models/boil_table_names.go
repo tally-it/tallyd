@@ -8,6 +8,7 @@ var TableNames = struct {
 	Categories         string
 	GorpMigrations     string
 	ProductCategoryMap string
+	ProductVersions    string
 	Products           string
 	Stock              string
 	Transactions       string
@@ -17,6 +18,7 @@ var TableNames = struct {
 	Categories:         "categories",
 	GorpMigrations:     "gorp_migrations",
 	ProductCategoryMap: "product_category_map",
+	ProductVersions:    "product_versions",
 	Products:           "products",
 	Stock:              "stock",
 	Transactions:       "transactions",

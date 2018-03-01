@@ -18,43 +18,40 @@ func (m *Mysql) AddTransaction(ctx context.Context, r *contract.ChangeBalanceReq
 	logger := pkgLogger.ForFunc(ctx, "AddTransaction")
 	logger.Debug("enter repository")
 
-	var sku null.Int
-	if r.SKU != 0 {
-		sku = null.IntFrom(r.SKU)
+	var productID null.Int
+	if r.ProductID != 0 {
+		productID = null.IntFrom(r.ProductID)
 	}
 
 	transaction := models.Transaction{
-		UserID: null.IntFrom(r.UserID),
-		SKUID:  sku,
-		Value:  r.Value.String(),
-		Tag:    null.StringFrom(r.Tag),
+		UserID:    null.IntFrom(r.UserID),
+		ProductID: productID,
+		Value:     r.Value.String(),
+		Tag:       null.StringFrom(r.Tag),
 	}
 
-	var err error
-	if r.SKU != 0 {
-		// check if SKU ID is existing
-		_, err = models.Products(m.db, qm.Where("SKU_id=?", r.SKU)).One()
-		if err != nil && err != sql.ErrNoRows {
+	if r.ProductID != 0 {
+		// check if ProductID is existing
+		productVersion, err := models.ProductVersions(m.db,
+			qm.Select(models.ProductVersionColumns.Price),
+			qm.Where(models.ProductVersionColumns.ProductID+"=?", r.ProductID),
+			qm.OrderBy(models.ProductVersionColumns.ProductVersionID+" DESC")).One()
+		switch err{
+		case sql.ErrNoRows:
+			logger.WithField("productID", r.ProductID).Warn("failed to find product")
+			return errors.NotFound("failed to find product")
+		case nil:
+
+		default:
 			logger.WithError(err).Error("failed to get product")
 			return errors.InternalServerError("db error", err)
 		}
 
-		if err == sql.ErrNoRows {
-			logger.WithError(err).Error(err)
-			logger.Warn("failed to find product with sku ", r.SKU)
-			r.SKU = 0
-		}
-
-		product, err := m.GetProductBySKU(ctx, r.SKU)
-		if err != nil {
-			return err
-		}
-		transaction.Value = product.Price.String()
+		transaction.Value = productVersion.Price
 
 	}
 
-	err = transaction.Insert(m.db)
-
+	err := transaction.Insert(m.db)
 	if err != nil {
 		sqlerr, ok := sqlerror.Cause(err).(*mysql.MySQLError)
 		if !ok {
@@ -64,8 +61,8 @@ func (m *Mysql) AddTransaction(ctx context.Context, r *contract.ChangeBalanceReq
 
 		switch sqlerr.Number {
 		case 1452:
-			logger.WithField("sku", r.SKU).Warn("sku not found")
-			return errors.NotFound("sku not found")
+			logger.WithField("productID", r.ProductID).Warn("productID not found")
+			return errors.NotFound("productID not found")
 		default:
 			logger.WithError(err).Error("failed to insert transaction")
 			return errors.InternalServerError("db error", err)

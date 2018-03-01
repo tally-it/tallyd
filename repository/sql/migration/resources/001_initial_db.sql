@@ -1,4 +1,38 @@
 -- +migrate Up
+CREATE TABLE users
+(
+  user_id    INT AUTO_INCREMENT
+    PRIMARY KEY,
+  name       VARCHAR(191)                       NOT NULL,
+  email      VARCHAR(191)                       NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
+  updated_at DATETIME                           NULL,
+  is_blocked BIT DEFAULT b'0'                   NOT NULL,
+  is_admin   BIT DEFAULT b'0'                   NOT NULL,
+  CONSTRAINT users_name_uindex
+  UNIQUE (name)
+)
+  ENGINE = InnoDB
+  CHARSET = utf8mb4;
+
+create table user_auths
+(
+  user_auth_id int auto_increment
+    primary key,
+  user_id      int          not null,
+  method       varchar(255) not null,
+  value        tinyblob     null,
+  constraint fk_user_auths_user
+  foreign key (user_id) references users (user_id)
+    on update cascade
+    on delete cascade
+)
+  engine = InnoDB
+  charset = utf8mb4;
+
+create index fk_user_auths_user
+  on user_auths (user_id);
+
 create table categories
 (
   category_id int auto_increment
@@ -18,25 +52,36 @@ create table categories
 create index categories_categories_category_id_fk
   on categories (parent_id);
 
-CREATE TABLE products
+create table products
 (
-  product_id    INT AUTO_INCREMENT
-    PRIMARY KEY,
-  SKU_id        INT                                NOT NULL,
-  name          VARCHAR(255)                       NOT NULL,
-  GTIN          CHAR(14)                           NULL,
-  price         DECIMAL(15, 2)                     NOT NULL,
-  added_at      DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
-  deleted_at    DATETIME                           NULL,
-  is_visible    BIT DEFAULT b'1'                   NOT NULL,
-  quantity      DECIMAL(15, 4)                     NULL,
-  quantity_unit VARCHAR(255)                       NULL
+  product_id int auto_increment
+    primary key
 )
-  ENGINE = InnoDB
-  CHARSET = utf8mb4;
+  engine = InnoDB;
 
-CREATE INDEX products_SKU_index
-  ON products (SKU_id);
+
+create table product_versions
+(
+  product_version_id int auto_increment
+    primary key,
+  product_id         int                                not null,
+  name               varchar(255)                       not null,
+  GTIN               char(14)                           null,
+  price              decimal(15, 2)                     not null,
+  added_at           datetime default CURRENT_TIMESTAMP not null,
+  deleted_at         datetime                           null,
+  is_visible         bit default b'1'                   not null,
+  quantity           decimal(15, 4)                     null,
+  quantity_unit      varchar(255)                       null,
+  constraint product_versions_products_product_id_fk
+  foreign key (product_id) references products (product_id)
+    on update cascade
+)
+  engine = InnoDB
+  charset = utf8mb4;
+
+create index products_SKU_index
+  on product_versions (product_id);
 
 create table product_category_map
 (
@@ -58,96 +103,55 @@ create table product_category_map
 create index product_category_map_ibfk_1
   on product_category_map (category_id);
 
-CREATE TABLE stock
+create table stock
 (
-  stock_id  INT AUTO_INCREMENT
-    PRIMARY KEY,
-  SKU_id    INT                                 NOT NULL,
-  user_id   INT                                 NULL,
-  quantity  INT                                 NOT NULL,
-  addded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-  CONSTRAINT stock_products_SKU_fk
-  FOREIGN KEY (SKU_id) REFERENCES products (SKU_id)
-    ON UPDATE CASCADE
-    ON DELETE CASCADE
+  stock_id   int auto_increment
+    primary key,
+  product_id int                                 not null,
+  user_id    int                                 null,
+  quantity   int                                 not null,
+  addded_at  timestamp default CURRENT_TIMESTAMP not null,
+  constraint stock_products_product_id_fk
+  foreign key (product_id) references products (product_id)
+    on update cascade,
+  constraint stock_ibfk_1
+  foreign key (user_id) references users (user_id)
+    on update set null
+    on delete set null
 )
-  ENGINE = InnoDB
-  CHARSET = utf8mb4;
+  engine = InnoDB
+  charset = utf8mb4;
 
-CREATE INDEX stock_products_SKU_fk
-  ON stock (SKU_id);
+create index stock_ibfk_1
+  on stock (user_id);
 
-CREATE INDEX stock_ibfk_1
-  ON stock (user_id);
+create index stock_products_SKU_fk
+  on stock (product_id);
 
-CREATE TABLE transactions
+create table transactions
 (
-  transaction_id INT AUTO_INCREMENT
-    PRIMARY KEY,
-  user_id        INT                                 NULL,
-  SKU_id         INT                                 NULL,
-  value          DECIMAL(15, 2)                      NOT NULL,
-  tag            VARCHAR(255)                        NULL,
-  added_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-  updated_at     TIMESTAMP                           NULL,
-  CONSTRAINT `transactions__product.SKU_id_fk`
-  FOREIGN KEY (SKU_id) REFERENCES products (SKU_id)
-    ON UPDATE CASCADE
+  transaction_id int auto_increment
+    primary key,
+  user_id        int                                 null,
+  product_id     int                                 null,
+  value          decimal(15, 2)                      not null,
+  tag            varchar(255)                        null,
+  added_at       timestamp default CURRENT_TIMESTAMP not null,
+  updated_at     timestamp                           null,
+  constraint fk_transactions_users
+  foreign key (user_id) references users (user_id)
+    on update cascade
+    on delete set null,
+  constraint transactions_products_product_id_fk
+  foreign key (product_id) references products (product_id)
+    on update cascade
     ON DELETE SET NULL
 )
-  ENGINE = InnoDB
-  CHARSET = utf8mb4;
+  engine = InnoDB
+  charset = utf8mb4;
 
-CREATE INDEX user_id
-  ON transactions (user_id);
+create index `transactions__product.SKU_id_fk`
+  on transactions (product_id);
 
-CREATE INDEX `transactions__product.SKU_id_fk`
-  ON transactions (SKU_id);
-
-CREATE TABLE user_auths
-(
-  user_auth_id INT AUTO_INCREMENT
-    PRIMARY KEY,
-  user_id      INT          NOT NULL,
-  method       VARCHAR(255) NOT NULL,
-  value        TINYBLOB     NULL
-)
-  ENGINE = InnoDB
-  CHARSET = utf8mb4;
-
-CREATE INDEX fk_user_auths_user
-  ON user_auths (user_id);
-
-CREATE TABLE users
-(
-  user_id    INT AUTO_INCREMENT
-    PRIMARY KEY,
-  name       VARCHAR(191)                       NOT NULL,
-  email      VARCHAR(191)                       NULL,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
-  updated_at DATETIME                           NULL,
-  is_blocked BIT DEFAULT b'0'                   NOT NULL,
-  is_admin   BIT DEFAULT b'0'                   NOT NULL,
-  CONSTRAINT users_name_uindex
-  UNIQUE (name)
-)
-  ENGINE = InnoDB
-  CHARSET = utf8mb4;
-
-ALTER TABLE stock
-  ADD CONSTRAINT stock_ibfk_1
-FOREIGN KEY (user_id) REFERENCES users (user_id)
-  ON UPDATE SET NULL
-  ON DELETE SET NULL;
-
-ALTER TABLE transactions
-  ADD CONSTRAINT fk_transactions_users
-FOREIGN KEY (user_id) REFERENCES users (user_id)
-  ON UPDATE CASCADE
-  ON DELETE SET NULL;
-
-ALTER TABLE user_auths
-  ADD CONSTRAINT fk_user_auths_user
-FOREIGN KEY (user_id) REFERENCES users (user_id)
-  ON UPDATE CASCADE
-  ON DELETE CASCADE;
+create index user_id
+  on transactions (user_id);

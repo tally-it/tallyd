@@ -23,42 +23,42 @@ import (
 
 // Stock is an object representing the database table.
 type Stock struct {
-	StockID  int       `boil:"stock_id" json:"stock_id" toml:"stock_id" yaml:"stock_id"`
-	SKUID    int       `boil:"SKU_id" json:"SKU_id" toml:"SKU_id" yaml:"SKU_id"`
-	UserID   null.Int  `boil:"user_id" json:"user_id,omitempty" toml:"user_id" yaml:"user_id,omitempty"`
-	Quantity int       `boil:"quantity" json:"quantity" toml:"quantity" yaml:"quantity"`
-	AdddedAt time.Time `boil:"addded_at" json:"addded_at" toml:"addded_at" yaml:"addded_at"`
+	StockID   int       `boil:"stock_id" json:"stock_id" toml:"stock_id" yaml:"stock_id"`
+	ProductID int       `boil:"product_id" json:"product_id" toml:"product_id" yaml:"product_id"`
+	UserID    null.Int  `boil:"user_id" json:"user_id,omitempty" toml:"user_id" yaml:"user_id,omitempty"`
+	Quantity  int       `boil:"quantity" json:"quantity" toml:"quantity" yaml:"quantity"`
+	AdddedAt  time.Time `boil:"addded_at" json:"addded_at" toml:"addded_at" yaml:"addded_at"`
 
 	R *stockR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L stockL  `boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
 var StockColumns = struct {
-	StockID  string
-	SKUID    string
-	UserID   string
-	Quantity string
-	AdddedAt string
+	StockID   string
+	ProductID string
+	UserID    string
+	Quantity  string
+	AdddedAt  string
 }{
-	StockID:  "stock_id",
-	SKUID:    "SKU_id",
-	UserID:   "user_id",
-	Quantity: "quantity",
-	AdddedAt: "addded_at",
+	StockID:   "stock_id",
+	ProductID: "product_id",
+	UserID:    "user_id",
+	Quantity:  "quantity",
+	AdddedAt:  "addded_at",
 }
 
 // stockR is where relationships are stored.
 type stockR struct {
-	User *User
-	SKU  *Product
+	User    *User
+	Product *Product
 }
 
 // stockL is where Load methods for each relationship are stored.
 type stockL struct{}
 
 var (
-	stockColumns               = []string{"stock_id", "SKU_id", "user_id", "quantity", "addded_at"}
-	stockColumnsWithoutDefault = []string{"SKU_id", "user_id", "quantity"}
+	stockColumns               = []string{"stock_id", "product_id", "user_id", "quantity", "addded_at"}
+	stockColumnsWithoutDefault = []string{"product_id", "user_id", "quantity"}
 	stockColumnsWithDefault    = []string{"stock_id", "addded_at"}
 	stockPrimaryKeyColumns     = []string{"stock_id"}
 )
@@ -211,15 +211,15 @@ func (o *Stock) User(exec boil.Executor, mods ...qm.QueryMod) userQuery {
 	return query
 }
 
-// SKUG pointed to by the foreign key.
-func (o *Stock) SKUG(mods ...qm.QueryMod) productQuery {
-	return o.SKU(boil.GetDB(), mods...)
+// ProductG pointed to by the foreign key.
+func (o *Stock) ProductG(mods ...qm.QueryMod) productQuery {
+	return o.Product(boil.GetDB(), mods...)
 }
 
-// SKU pointed to by the foreign key.
-func (o *Stock) SKU(exec boil.Executor, mods ...qm.QueryMod) productQuery {
+// Product pointed to by the foreign key.
+func (o *Stock) Product(exec boil.Executor, mods ...qm.QueryMod) productQuery {
 	queryMods := []qm.QueryMod{
-		qm.Where("SKU_id=?", o.SKUID),
+		qm.Where("product_id=?", o.ProductID),
 	}
 
 	queryMods = append(queryMods, mods...)
@@ -298,9 +298,9 @@ func (stockL) LoadUser(e boil.Executor, singular bool, maybeStock interface{}) e
 	return nil
 }
 
-// LoadSKU allows an eager lookup of values, cached into the
+// LoadProduct allows an eager lookup of values, cached into the
 // loaded structs of the objects.
-func (stockL) LoadSKU(e boil.Executor, singular bool, maybeStock interface{}) error {
+func (stockL) LoadProduct(e boil.Executor, singular bool, maybeStock interface{}) error {
 	var slice []*Stock
 	var object *Stock
 
@@ -317,18 +317,18 @@ func (stockL) LoadSKU(e boil.Executor, singular bool, maybeStock interface{}) er
 		if object.R == nil {
 			object.R = &stockR{}
 		}
-		args[0] = object.SKUID
+		args[0] = object.ProductID
 	} else {
 		for i, obj := range slice {
 			if obj.R == nil {
 				obj.R = &stockR{}
 			}
-			args[i] = obj.SKUID
+			args[i] = obj.ProductID
 		}
 	}
 
 	query := fmt.Sprintf(
-		"select * from `products` where `SKU_id` in (%s)",
+		"select * from `products` where `product_id` in (%s)",
 		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
 	)
 
@@ -352,14 +352,14 @@ func (stockL) LoadSKU(e boil.Executor, singular bool, maybeStock interface{}) er
 	}
 
 	if singular {
-		object.R.SKU = resultSlice[0]
+		object.R.Product = resultSlice[0]
 		return nil
 	}
 
 	for _, local := range slice {
 		for _, foreign := range resultSlice {
-			if local.SKUID == foreign.SKUID {
-				local.R.SKU = foreign
+			if local.ProductID == foreign.ProductID {
+				local.R.Product = foreign
 				break
 			}
 		}
@@ -505,38 +505,38 @@ func (o *Stock) RemoveUser(exec boil.Executor, related *User) error {
 	return nil
 }
 
-// SetSKUG of the stock to the related item.
-// Sets o.R.SKU to related.
-// Adds o to related.R.SKUStocks.
+// SetProductG of the stock to the related item.
+// Sets o.R.Product to related.
+// Adds o to related.R.Stocks.
 // Uses the global database handle.
-func (o *Stock) SetSKUG(insert bool, related *Product) error {
-	return o.SetSKU(boil.GetDB(), insert, related)
+func (o *Stock) SetProductG(insert bool, related *Product) error {
+	return o.SetProduct(boil.GetDB(), insert, related)
 }
 
-// SetSKUP of the stock to the related item.
-// Sets o.R.SKU to related.
-// Adds o to related.R.SKUStocks.
+// SetProductP of the stock to the related item.
+// Sets o.R.Product to related.
+// Adds o to related.R.Stocks.
 // Panics on error.
-func (o *Stock) SetSKUP(exec boil.Executor, insert bool, related *Product) {
-	if err := o.SetSKU(exec, insert, related); err != nil {
+func (o *Stock) SetProductP(exec boil.Executor, insert bool, related *Product) {
+	if err := o.SetProduct(exec, insert, related); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// SetSKUGP of the stock to the related item.
-// Sets o.R.SKU to related.
-// Adds o to related.R.SKUStocks.
+// SetProductGP of the stock to the related item.
+// Sets o.R.Product to related.
+// Adds o to related.R.Stocks.
 // Uses the global database handle and panics on error.
-func (o *Stock) SetSKUGP(insert bool, related *Product) {
-	if err := o.SetSKU(boil.GetDB(), insert, related); err != nil {
+func (o *Stock) SetProductGP(insert bool, related *Product) {
+	if err := o.SetProduct(boil.GetDB(), insert, related); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// SetSKU of the stock to the related item.
-// Sets o.R.SKU to related.
-// Adds o to related.R.SKUStocks.
-func (o *Stock) SetSKU(exec boil.Executor, insert bool, related *Product) error {
+// SetProduct of the stock to the related item.
+// Sets o.R.Product to related.
+// Adds o to related.R.Stocks.
+func (o *Stock) SetProduct(exec boil.Executor, insert bool, related *Product) error {
 	var err error
 	if insert {
 		if err = related.Insert(exec); err != nil {
@@ -546,10 +546,10 @@ func (o *Stock) SetSKU(exec boil.Executor, insert bool, related *Product) error 
 
 	updateQuery := fmt.Sprintf(
 		"UPDATE `stock` SET %s WHERE %s",
-		strmangle.SetParamNames("`", "`", 0, []string{"SKU_id"}),
+		strmangle.SetParamNames("`", "`", 0, []string{"product_id"}),
 		strmangle.WhereClause("`", "`", 0, stockPrimaryKeyColumns),
 	)
-	values := []interface{}{related.SKUID, o.StockID}
+	values := []interface{}{related.ProductID, o.StockID}
 
 	if boil.DebugMode {
 		fmt.Fprintln(boil.DebugWriter, updateQuery)
@@ -560,22 +560,22 @@ func (o *Stock) SetSKU(exec boil.Executor, insert bool, related *Product) error 
 		return errors.Wrap(err, "failed to update local table")
 	}
 
-	o.SKUID = related.SKUID
+	o.ProductID = related.ProductID
 
 	if o.R == nil {
 		o.R = &stockR{
-			SKU: related,
+			Product: related,
 		}
 	} else {
-		o.R.SKU = related
+		o.R.Product = related
 	}
 
 	if related.R == nil {
 		related.R = &productR{
-			SKUStocks: StockSlice{o},
+			Stocks: StockSlice{o},
 		}
 	} else {
-		related.R.SKUStocks = append(related.R.SKUStocks, o)
+		related.R.Stocks = append(related.R.Stocks, o)
 	}
 
 	return nil

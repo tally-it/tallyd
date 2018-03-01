@@ -1,6 +1,6 @@
-// Hack and Pay.
+// Tally it - daemon
 //
-// Pay your shit while hacking shit
+// A tool for hack spaces, clubs, groups and companies to manage a digital tally sheet.
 //
 // Schemes: http
 // Version: 0.1
@@ -169,7 +169,7 @@ func (h *Handler) Routes() []*router.Route {
 		{
 			"GetProductDetail",
 			"GET",
-			"/v1/product/:sku",
+			"/v1/product/:productID",
 			wrap(h.productDetail),
 		},
 		{
@@ -181,19 +181,19 @@ func (h *Handler) Routes() []*router.Route {
 		{
 			"UpdateProduct",
 			"PUT",
-			"/v1/product/:sku",
+			"/v1/product/:productID",
 			wrap(h.authorizer.Authorize(h.editProduct, authTypeAll)),
 		},
 		{
 			"DeleteProduct",
 			"DELETE",
-			"/v1/product/:sku",
+			"/v1/product/:productID",
 			wrap(h.authorizer.Authorize(h.deleteProduct, authTypeAll)),
 		},
 		{
 			"ChangeStock",
 			"POST",
-			"/v1/product/:sku/stock",
+			"/v1/product/:productID/stock",
 			wrap(h.authorizer.Authorize(h.changeStock, authTypeAll)),
 		},
 		{

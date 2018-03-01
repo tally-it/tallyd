@@ -38,7 +38,7 @@ func (h *Handler) productDetail(ctx context.Context, r *http.Request, pathParams
 	}
 
 	// get all product data
-	product, err := h.repo.GetProductBySKU(ctx, SKU)
+	product, err := h.repo.GetProductByID(ctx, SKU)
 	if err != nil {
 		logger.WithError(err).Error("failed to get product data")
 		return nil, err
@@ -50,6 +50,8 @@ func (h *Handler) productDetail(ctx context.Context, r *http.Request, pathParams
 func (h *Handler) addProduct(ctx context.Context, r *http.Request, pathParams map[string]string) (interface{}, error) {
 	logger := pkgLogger.ForFunc(ctx, "addProduct")
 	logger.Debug("enter handler")
+
+	//TODO check if exact the same product is already existing
 
 	product := &contract.AddProductRequestBody{}
 
@@ -85,9 +87,11 @@ func (h *Handler) editProduct(ctx context.Context, r *http.Request, pathParams m
 	logger := pkgLogger.ForFunc(ctx, "changeProduct")
 	logger.Debug("enter handler")
 
+	// TODO check if anything has changed
+
 	// read id
-	sku := pathParams["sku"]
-	SKU, err := strconv.Atoi(sku)
+	productIDStr := pathParams["productID"]
+	productID, err := strconv.Atoi(productIDStr)
 	if err != nil {
 		logger.WithError(err).Error("failed to parse product sku")
 		return nil, errors.BadRequest(err.Error())
@@ -111,7 +115,7 @@ func (h *Handler) editProduct(ctx context.Context, r *http.Request, pathParams m
 	}
 
 	if ctxutil.GetAdminStatus(ctx) == true {
-		err = h.repo.EditProduct(ctx, SKU, *product)
+		err = h.repo.EditProduct(ctx, productID,product)
 		if err != nil {
 			return nil, err
 		}
@@ -127,17 +131,17 @@ func (h *Handler) deleteProduct(ctx context.Context, r *http.Request, pathParams
 	logger.Debug("enter handler")
 
 	// read id
-	sku := pathParams["sku"]
-	SKU, err := strconv.Atoi(sku)
+	productIDString := pathParams["productID"]
+	productID, err := strconv.Atoi(productIDString)
 	if err != nil {
-		logger.WithError(err).Error("failed to parse product sku")
+		logger.WithError(err).Error("failed to parse product productID")
 		return nil, errors.BadRequest(err.Error())
 	}
 
 	if ctxutil.GetAdminStatus(ctx) == true {
 
 		// update delete status
-		err = h.repo.DeleteProduct(ctx, SKU)
+		err = h.repo.DeleteProduct(ctx, productID)
 		if err != nil {
 			return nil, err
 		}
@@ -153,10 +157,10 @@ func (h *Handler) changeStock(ctx context.Context, r *http.Request, pathParams m
 	logger.Debug("enter handler")
 
 	// read id
-	sku := pathParams["sku"]
-	SKU, err := strconv.Atoi(sku)
+	productIDStr := pathParams["productID"]
+	productID, err := strconv.Atoi(productIDStr)
 	if err != nil {
-		logger.WithError(err).Error("failed to parse product sku")
+		logger.WithError(err).Error("failed to parse product productID")
 		return nil, errors.BadRequest(err.Error())
 	}
 
@@ -175,7 +179,7 @@ func (h *Handler) changeStock(ctx context.Context, r *http.Request, pathParams m
 	stock.UserID = ctxutil.GetUserID(ctx)
 
 	// insert sku
-	stock.SKU = SKU
+	stock.ProductID = productID
 
 	// validate data
 	if err = validator.Validate(stock); err != nil {

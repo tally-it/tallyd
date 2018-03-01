@@ -7,7 +7,6 @@ import (
 
 type Product struct {
 	ProductID    int             `json:"productID" db:"product_id"`
-	SKU          int             `json:"SKU" db:"SKU_id"`
 	Name         string          `json:"Name" db:"name"`
 	GTIN         string          `json:"GTIN" db:"GTIN"`
 	Price        decimal.Decimal `json:"price" db:"price"`
@@ -23,9 +22,7 @@ type Product struct {
 // swagger:model
 type AddProductRequestBody struct {
 	// required: true
-	SKU int `json:"SKU" db:"SKU_id" validate:"nonzero"`
-	// required: true
-	Name string `json:"Name" db:"name" validate:"nonzero"`
+	Name string `json:"name" db:"name" validate:"nonzero"`
 	// required: false
 	GTIN string `json:"GTIN" db:"GTIN"`
 	// required: true
