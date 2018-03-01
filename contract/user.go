@@ -33,14 +33,18 @@ type EditUserRequestBody struct {
 // swagger:model
 type AddUserRequestBody struct {
 	// required: true
+	// example: some name
 	Name string `json:"name"`
 	// required: true
+	// example: user@example.com
+	// type: email
 	Email string `json:"email"`
 	// required: true
 	Password string `json:"password"`
 }
 
-// swagger:model
+// swagger:model a b
+// in:body
 type LoginRequestBody struct {
 	Name     string `json:"name" validate:"nonzero"`
 	Password string `json:"password" validate:"nonzero"`

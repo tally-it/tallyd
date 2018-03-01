@@ -5,10 +5,16 @@ import (
 	"net/http"
 )
 
-// swagger:model error
+// Error is the error returned if an error occurred
+// swagger:model errorResponse
 type Error struct {
+	// status code
+	// required: true
 	Status  int    `json:"status"`
+	// error message
+	// required: true
 	Message string `json:"message"`
+	// error details
 	Details string `json:"detail"`
 	Cause   error  `json:"-"`
 }

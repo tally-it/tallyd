@@ -11,15 +11,14 @@
 // Produces:
 // - application/json
 //
+// Security:
+// - bearer
+//
 // SecurityDefinitions:
-//   oauth2:
-//     type: oauth2
-//     authorizationUrl: /oauth2/auth
-//     tokenUrl: /oauth2/token
-//     in: header
-//     flow: password
-//     scopes:
-//       bla: foo
+//   bearer:
+//    type: apiKey
+//    name: Authorization
+//    in: header
 //
 // swagger:meta
 package handler
@@ -49,93 +48,94 @@ func New(repo *sql.Mysql, ldap *ldap.LDAP, authorizer authorizer) *Handler {
 
 func (h *Handler) Routes() []*router.Route {
 	return []*router.Route{
-		// swagger:route GET /v1/user users GetUserIndex
+		// swagger:operation GET /v1/user users GetUserIndex
+		// ---
+		// authorization: none
 		//
-		// Lists all users with their public data.
-		//
-		// This will show all available pets by default.
-		// You can get the pets that are out of stock
-		//
-		// Consumes:
-		// - application/json
-		//
-		// Produces:
-		// - application/json
-		//
-		// Schemes: http
-		//
-		// Security:
-		//   oauth2: admin, user
-		//
-		// Responses:
-		//   200: UserSlice
-		//   400: error
+		// summary: Lists all users with their public data.
+		// responses:
+		//   '200':
+		//     $ref: '#/definitions/UserSlice'
 		{
 			"GetUserIndex",
 			"GET",
 			"/v1/user",
 			wrap(h.publicUserIndex),
 		},
-		// swagger:route POST /v1/user/login users userLogin
-		//
-		// Used for login.
-		//
-		// Yadda yadda yadda
-		//
-		// Consumes:
-		// - application/json
-		//
-		// Produces:
-		// - application/json
-		//
-		// Schemes: http
-		//
-		// Parameters:
-		// Body      LoginRequestBody     in:body required "comment woop"
-		//
-		// Security:
-		// oauth2: admin, user
-		//
-		// Responses:
-		//   200: User
-		//   400: error
-		//	 500: error
+		// swagger:operation POST /v1/user/login users userLogin
+		// ---
+		// summary: Used to login
+		// description:
+		//   >
+		//     asd
+		//     very
+		//     long
+		//     description
+		// parameters:
+		// - name: body
+		//   required: true
+		//   description: Optional description in *Markdown*
+		//   in: body
+		//   schema:
+		//     $ref: '#/definitions/LoginRequestBody'
+		// responses:
+		//   '200':
+		//     $ref: '#/definitions/LoginResponse'
+		//   '400':
+		//     $ref: '#/definitions/errorResponse'
 		{
 			"Login",
 			"POST",
 			"/v1/login",
 			wrap(h.login),
 		},
-		// swagger:route POST /v1/user users addUser
-		//
-		// Adds a user.
-		//
-		// Yadda yadda yadda
-		//
-		// Consumes:
-		// - application/json
-		//
-		// Produces:
-		// - application/json
-		//
-		// Schemes: http
-		//
-		// Parameters:
-		// Body      AddUserRequestBody     in:body required "comment woop"
-		//
-		// Security:
-		// oauth2: admin, user
-		//
-		// Responses:
-		//   200: UserSlice
-		//   400: error
-		//	 500: error
+		// swagger:operation POST /v1/user users signUp
+		// ---
+		// summary: Registers a new user.
+		// description: If author length is between 6 and 8, Error Not Found (404) will be returned.
+		// parameters:
+		// - name: body
+		//   required: true
+		//   description: Optional description in *Markdown*
+		//   in: body
+		//   schema:
+		//     $ref: '#/definitions/AddUserRequestBody'
+		// responses:
+		//   '200':
+		//     $ref: '#/definitions/AddUserResponseBody'
+		//   '400':
+		//     $ref: '#/definitions/errorResponse'
+		//   '500':
+		//     $ref: '#/definitions/errorResponse'
 		{
 			"AddUser",
 			"POST",
 			"/v1/user",
 			wrap(h.signUp),
 		},
+		// swagger:operation POST /v1/user/{id} users userProfile
+		// ---
+		// summary: List the repositories owned by the given author.
+		// description: If author length is between 6 and 8, Error Not Found (404) will be returned.
+		// parameters:
+		// - name: id
+		//   in: path
+		//   description: userId
+		//   type: string
+		//   required: true
+		// - name: body
+		//   required: true
+		//   description: Optional description in *Markdown*
+		//   in: body
+		//   schema:
+		//     $ref: '#/definitions/EditUserRequestBody'
+		// responses:
+		//   '200':
+		//     $ref: '#/definitions/EditUserRequestBody'
+        //   '400':
+		//     $ref: '#/definitions/errorResponse'
+        //   '500':
+		//     $ref: '#/definitions/errorResponse'
 		{
 			"GetUserDetail",
 			"GET",
