@@ -115,7 +115,7 @@ func (h *Handler) deleteUser(ctx context.Context, r *http.Request, pathParams ma
 		return nil, errors.BadRequest("failed to parse id")
 	}
 
-	// user can only delete themself; admins can delete everybody
+	// user can only delete themselves; admins can delete everybody
 	// check if data, which can be only edited by admin, are changed
 	if ctxutil.GetAdminStatus(ctx) == true || ctxutil.GetUserID(ctx) == id {
 		err = h.repo.DeleteUser(ctx, id)
