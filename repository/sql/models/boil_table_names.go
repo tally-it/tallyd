@@ -6,7 +6,6 @@ package models
 
 var TableNames = struct {
 	Categories         string
-	CategoryParentMap  string
 	GorpMigrations     string
 	ProductCategoryMap string
 	Products           string
@@ -16,7 +15,6 @@ var TableNames = struct {
 	Users              string
 }{
 	Categories:         "categories",
-	CategoryParentMap:  "category_parent_map",
 	GorpMigrations:     "gorp_migrations",
 	ProductCategoryMap: "product_category_map",
 	Products:           "products",

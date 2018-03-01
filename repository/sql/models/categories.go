@@ -18,15 +18,16 @@ import (
 	"github.com/vattle/sqlboiler/queries"
 	"github.com/vattle/sqlboiler/queries/qm"
 	"github.com/vattle/sqlboiler/strmangle"
+	"gopkg.in/nullbio/null.v6"
 )
 
 // Category is an object representing the database table.
 type Category struct {
-	CategoryID int    `boil:"category_id" json:"category_id" toml:"category_id" yaml:"category_id"`
-	Name       string `boil:"name" json:"name" toml:"name" yaml:"name"`
-	IsVisible  string `boil:"is_visible" json:"is_visible" toml:"is_visible" yaml:"is_visible"`
-	IsActive   string `boil:"is_active" json:"is_active" toml:"is_active" yaml:"is_active"`
-	IsRoot     string `boil:"is_root" json:"is_root" toml:"is_root" yaml:"is_root"`
+	CategoryID int      `boil:"category_id" json:"category_id" toml:"category_id" yaml:"category_id"`
+	Name       string   `boil:"name" json:"name" toml:"name" yaml:"name"`
+	IsVisible  string   `boil:"is_visible" json:"is_visible" toml:"is_visible" yaml:"is_visible"`
+	IsActive   string   `boil:"is_active" json:"is_active" toml:"is_active" yaml:"is_active"`
+	ParentID   null.Int `boil:"parent_id" json:"parent_id,omitempty" toml:"parent_id" yaml:"parent_id,omitempty"`
 
 	R *categoryR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L categoryL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -37,27 +38,29 @@ var CategoryColumns = struct {
 	Name       string
 	IsVisible  string
 	IsActive   string
-	IsRoot     string
+	ParentID   string
 }{
 	CategoryID: "category_id",
 	Name:       "name",
 	IsVisible:  "is_visible",
 	IsActive:   "is_active",
-	IsRoot:     "is_root",
+	ParentID:   "parent_id",
 }
 
 // categoryR is where relationships are stored.
 type categoryR struct {
-	Products ProductSlice
+	Parent           *Category
+	ParentCategories CategorySlice
+	Products         ProductSlice
 }
 
 // categoryL is where Load methods for each relationship are stored.
 type categoryL struct{}
 
 var (
-	categoryColumns               = []string{"category_id", "name", "is_visible", "is_active", "is_root"}
-	categoryColumnsWithoutDefault = []string{"name"}
-	categoryColumnsWithDefault    = []string{"category_id", "is_visible", "is_active", "is_root"}
+	categoryColumns               = []string{"category_id", "name", "is_visible", "is_active", "parent_id"}
+	categoryColumnsWithoutDefault = []string{"name", "parent_id"}
+	categoryColumnsWithDefault    = []string{"category_id", "is_visible", "is_active"}
 	categoryPrimaryKeyColumns     = []string{"category_id"}
 )
 
@@ -190,6 +193,51 @@ func (q categoryQuery) Exists() (bool, error) {
 	return count > 0, nil
 }
 
+// ParentG pointed to by the foreign key.
+func (o *Category) ParentG(mods ...qm.QueryMod) categoryQuery {
+	return o.Parent(boil.GetDB(), mods...)
+}
+
+// Parent pointed to by the foreign key.
+func (o *Category) Parent(exec boil.Executor, mods ...qm.QueryMod) categoryQuery {
+	queryMods := []qm.QueryMod{
+		qm.Where("category_id=?", o.ParentID),
+	}
+
+	queryMods = append(queryMods, mods...)
+
+	query := Categories(exec, queryMods...)
+	queries.SetFrom(query.Query, "`categories`")
+
+	return query
+}
+
+// ParentCategoriesG retrieves all the category's categories via parent_id column.
+func (o *Category) ParentCategoriesG(mods ...qm.QueryMod) categoryQuery {
+	return o.ParentCategories(boil.GetDB(), mods...)
+}
+
+// ParentCategories retrieves all the category's categories with an executor via parent_id column.
+func (o *Category) ParentCategories(exec boil.Executor, mods ...qm.QueryMod) categoryQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("`categories`.`parent_id`=?", o.CategoryID),
+	)
+
+	query := Categories(exec, queryMods...)
+	queries.SetFrom(query.Query, "`categories`")
+
+	if len(queries.GetSelect(query.Query)) == 0 {
+		queries.SetSelect(query.Query, []string{"`categories`.*"})
+	}
+
+	return query
+}
+
 // ProductsG retrieves all the product's products.
 func (o *Category) ProductsG(mods ...qm.QueryMod) productQuery {
 	return o.Products(boil.GetDB(), mods...)
@@ -215,6 +263,141 @@ func (o *Category) Products(exec boil.Executor, mods ...qm.QueryMod) productQuer
 	}
 
 	return query
+}
+
+// LoadParent allows an eager lookup of values, cached into the
+// loaded structs of the objects.
+func (categoryL) LoadParent(e boil.Executor, singular bool, maybeCategory interface{}) error {
+	var slice []*Category
+	var object *Category
+
+	count := 1
+	if singular {
+		object = maybeCategory.(*Category)
+	} else {
+		slice = *maybeCategory.(*[]*Category)
+		count = len(slice)
+	}
+
+	args := make([]interface{}, count)
+	if singular {
+		if object.R == nil {
+			object.R = &categoryR{}
+		}
+		args[0] = object.ParentID
+	} else {
+		for i, obj := range slice {
+			if obj.R == nil {
+				obj.R = &categoryR{}
+			}
+			args[i] = obj.ParentID
+		}
+	}
+
+	query := fmt.Sprintf(
+		"select * from `categories` where `category_id` in (%s)",
+		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
+	)
+
+	if boil.DebugMode {
+		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
+	}
+
+	results, err := e.Query(query, args...)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load Category")
+	}
+	defer results.Close()
+
+	var resultSlice []*Category
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice Category")
+	}
+
+	if len(resultSlice) == 0 {
+		return nil
+	}
+
+	if singular {
+		object.R.Parent = resultSlice[0]
+		return nil
+	}
+
+	for _, local := range slice {
+		for _, foreign := range resultSlice {
+			if local.ParentID.Int == foreign.CategoryID {
+				local.R.Parent = foreign
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadParentCategories allows an eager lookup of values, cached into the
+// loaded structs of the objects.
+func (categoryL) LoadParentCategories(e boil.Executor, singular bool, maybeCategory interface{}) error {
+	var slice []*Category
+	var object *Category
+
+	count := 1
+	if singular {
+		object = maybeCategory.(*Category)
+	} else {
+		slice = *maybeCategory.(*[]*Category)
+		count = len(slice)
+	}
+
+	args := make([]interface{}, count)
+	if singular {
+		if object.R == nil {
+			object.R = &categoryR{}
+		}
+		args[0] = object.CategoryID
+	} else {
+		for i, obj := range slice {
+			if obj.R == nil {
+				obj.R = &categoryR{}
+			}
+			args[i] = obj.CategoryID
+		}
+	}
+
+	query := fmt.Sprintf(
+		"select * from `categories` where `parent_id` in (%s)",
+		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
+	)
+	if boil.DebugMode {
+		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
+	}
+
+	results, err := e.Query(query, args...)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load categories")
+	}
+	defer results.Close()
+
+	var resultSlice []*Category
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice categories")
+	}
+
+	if singular {
+		object.R.ParentCategories = resultSlice
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.CategoryID == foreign.ParentID.Int {
+				local.R.ParentCategories = append(local.R.ParentCategories, foreign)
+				break
+			}
+		}
+	}
+
+	return nil
 }
 
 // LoadProducts allows an eager lookup of values, cached into the
@@ -292,6 +475,364 @@ func (categoryL) LoadProducts(e boil.Executor, singular bool, maybeCategory inte
 				local.R.Products = append(local.R.Products, foreign)
 				break
 			}
+		}
+	}
+
+	return nil
+}
+
+// SetParentG of the category to the related item.
+// Sets o.R.Parent to related.
+// Adds o to related.R.ParentCategories.
+// Uses the global database handle.
+func (o *Category) SetParentG(insert bool, related *Category) error {
+	return o.SetParent(boil.GetDB(), insert, related)
+}
+
+// SetParentP of the category to the related item.
+// Sets o.R.Parent to related.
+// Adds o to related.R.ParentCategories.
+// Panics on error.
+func (o *Category) SetParentP(exec boil.Executor, insert bool, related *Category) {
+	if err := o.SetParent(exec, insert, related); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// SetParentGP of the category to the related item.
+// Sets o.R.Parent to related.
+// Adds o to related.R.ParentCategories.
+// Uses the global database handle and panics on error.
+func (o *Category) SetParentGP(insert bool, related *Category) {
+	if err := o.SetParent(boil.GetDB(), insert, related); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// SetParent of the category to the related item.
+// Sets o.R.Parent to related.
+// Adds o to related.R.ParentCategories.
+func (o *Category) SetParent(exec boil.Executor, insert bool, related *Category) error {
+	var err error
+	if insert {
+		if err = related.Insert(exec); err != nil {
+			return errors.Wrap(err, "failed to insert into foreign table")
+		}
+	}
+
+	updateQuery := fmt.Sprintf(
+		"UPDATE `categories` SET %s WHERE %s",
+		strmangle.SetParamNames("`", "`", 0, []string{"parent_id"}),
+		strmangle.WhereClause("`", "`", 0, categoryPrimaryKeyColumns),
+	)
+	values := []interface{}{related.CategoryID, o.CategoryID}
+
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, updateQuery)
+		fmt.Fprintln(boil.DebugWriter, values)
+	}
+
+	if _, err = exec.Exec(updateQuery, values...); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	o.ParentID.Int = related.CategoryID
+	o.ParentID.Valid = true
+
+	if o.R == nil {
+		o.R = &categoryR{
+			Parent: related,
+		}
+	} else {
+		o.R.Parent = related
+	}
+
+	if related.R == nil {
+		related.R = &categoryR{
+			ParentCategories: CategorySlice{o},
+		}
+	} else {
+		related.R.ParentCategories = append(related.R.ParentCategories, o)
+	}
+
+	return nil
+}
+
+// RemoveParentG relationship.
+// Sets o.R.Parent to nil.
+// Removes o from all passed in related items' relationships struct (Optional).
+// Uses the global database handle.
+func (o *Category) RemoveParentG(related *Category) error {
+	return o.RemoveParent(boil.GetDB(), related)
+}
+
+// RemoveParentP relationship.
+// Sets o.R.Parent to nil.
+// Removes o from all passed in related items' relationships struct (Optional).
+// Panics on error.
+func (o *Category) RemoveParentP(exec boil.Executor, related *Category) {
+	if err := o.RemoveParent(exec, related); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// RemoveParentGP relationship.
+// Sets o.R.Parent to nil.
+// Removes o from all passed in related items' relationships struct (Optional).
+// Uses the global database handle and panics on error.
+func (o *Category) RemoveParentGP(related *Category) {
+	if err := o.RemoveParent(boil.GetDB(), related); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// RemoveParent relationship.
+// Sets o.R.Parent to nil.
+// Removes o from all passed in related items' relationships struct (Optional).
+func (o *Category) RemoveParent(exec boil.Executor, related *Category) error {
+	var err error
+
+	o.ParentID.Valid = false
+	if err = o.Update(exec, "parent_id"); err != nil {
+		o.ParentID.Valid = true
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	o.R.Parent = nil
+	if related == nil || related.R == nil {
+		return nil
+	}
+
+	for i, ri := range related.R.ParentCategories {
+		if o.ParentID.Int != ri.ParentID.Int {
+			continue
+		}
+
+		ln := len(related.R.ParentCategories)
+		if ln > 1 && i < ln-1 {
+			related.R.ParentCategories[i] = related.R.ParentCategories[ln-1]
+		}
+		related.R.ParentCategories = related.R.ParentCategories[:ln-1]
+		break
+	}
+	return nil
+}
+
+// AddParentCategoriesG adds the given related objects to the existing relationships
+// of the category, optionally inserting them as new records.
+// Appends related to o.R.ParentCategories.
+// Sets related.R.Parent appropriately.
+// Uses the global database handle.
+func (o *Category) AddParentCategoriesG(insert bool, related ...*Category) error {
+	return o.AddParentCategories(boil.GetDB(), insert, related...)
+}
+
+// AddParentCategoriesP adds the given related objects to the existing relationships
+// of the category, optionally inserting them as new records.
+// Appends related to o.R.ParentCategories.
+// Sets related.R.Parent appropriately.
+// Panics on error.
+func (o *Category) AddParentCategoriesP(exec boil.Executor, insert bool, related ...*Category) {
+	if err := o.AddParentCategories(exec, insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// AddParentCategoriesGP adds the given related objects to the existing relationships
+// of the category, optionally inserting them as new records.
+// Appends related to o.R.ParentCategories.
+// Sets related.R.Parent appropriately.
+// Uses the global database handle and panics on error.
+func (o *Category) AddParentCategoriesGP(insert bool, related ...*Category) {
+	if err := o.AddParentCategories(boil.GetDB(), insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// AddParentCategories adds the given related objects to the existing relationships
+// of the category, optionally inserting them as new records.
+// Appends related to o.R.ParentCategories.
+// Sets related.R.Parent appropriately.
+func (o *Category) AddParentCategories(exec boil.Executor, insert bool, related ...*Category) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.ParentID.Int = o.CategoryID
+			rel.ParentID.Valid = true
+			if err = rel.Insert(exec); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE `categories` SET %s WHERE %s",
+				strmangle.SetParamNames("`", "`", 0, []string{"parent_id"}),
+				strmangle.WhereClause("`", "`", 0, categoryPrimaryKeyColumns),
+			)
+			values := []interface{}{o.CategoryID, rel.CategoryID}
+
+			if boil.DebugMode {
+				fmt.Fprintln(boil.DebugWriter, updateQuery)
+				fmt.Fprintln(boil.DebugWriter, values)
+			}
+
+			if _, err = exec.Exec(updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.ParentID.Int = o.CategoryID
+			rel.ParentID.Valid = true
+		}
+	}
+
+	if o.R == nil {
+		o.R = &categoryR{
+			ParentCategories: related,
+		}
+	} else {
+		o.R.ParentCategories = append(o.R.ParentCategories, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &categoryR{
+				Parent: o,
+			}
+		} else {
+			rel.R.Parent = o
+		}
+	}
+	return nil
+}
+
+// SetParentCategoriesG removes all previously related items of the
+// category replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.Parent's ParentCategories accordingly.
+// Replaces o.R.ParentCategories with related.
+// Sets related.R.Parent's ParentCategories accordingly.
+// Uses the global database handle.
+func (o *Category) SetParentCategoriesG(insert bool, related ...*Category) error {
+	return o.SetParentCategories(boil.GetDB(), insert, related...)
+}
+
+// SetParentCategoriesP removes all previously related items of the
+// category replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.Parent's ParentCategories accordingly.
+// Replaces o.R.ParentCategories with related.
+// Sets related.R.Parent's ParentCategories accordingly.
+// Panics on error.
+func (o *Category) SetParentCategoriesP(exec boil.Executor, insert bool, related ...*Category) {
+	if err := o.SetParentCategories(exec, insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// SetParentCategoriesGP removes all previously related items of the
+// category replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.Parent's ParentCategories accordingly.
+// Replaces o.R.ParentCategories with related.
+// Sets related.R.Parent's ParentCategories accordingly.
+// Uses the global database handle and panics on error.
+func (o *Category) SetParentCategoriesGP(insert bool, related ...*Category) {
+	if err := o.SetParentCategories(boil.GetDB(), insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// SetParentCategories removes all previously related items of the
+// category replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.Parent's ParentCategories accordingly.
+// Replaces o.R.ParentCategories with related.
+// Sets related.R.Parent's ParentCategories accordingly.
+func (o *Category) SetParentCategories(exec boil.Executor, insert bool, related ...*Category) error {
+	query := "update `categories` set `parent_id` = null where `parent_id` = ?"
+	values := []interface{}{o.CategoryID}
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, query)
+		fmt.Fprintln(boil.DebugWriter, values)
+	}
+
+	_, err := exec.Exec(query, values...)
+	if err != nil {
+		return errors.Wrap(err, "failed to remove relationships before set")
+	}
+
+	if o.R != nil {
+		for _, rel := range o.R.ParentCategories {
+			rel.ParentID.Valid = false
+			if rel.R == nil {
+				continue
+			}
+
+			rel.R.Parent = nil
+		}
+
+		o.R.ParentCategories = nil
+	}
+	return o.AddParentCategories(exec, insert, related...)
+}
+
+// RemoveParentCategoriesG relationships from objects passed in.
+// Removes related items from R.ParentCategories (uses pointer comparison, removal does not keep order)
+// Sets related.R.Parent.
+// Uses the global database handle.
+func (o *Category) RemoveParentCategoriesG(related ...*Category) error {
+	return o.RemoveParentCategories(boil.GetDB(), related...)
+}
+
+// RemoveParentCategoriesP relationships from objects passed in.
+// Removes related items from R.ParentCategories (uses pointer comparison, removal does not keep order)
+// Sets related.R.Parent.
+// Panics on error.
+func (o *Category) RemoveParentCategoriesP(exec boil.Executor, related ...*Category) {
+	if err := o.RemoveParentCategories(exec, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// RemoveParentCategoriesGP relationships from objects passed in.
+// Removes related items from R.ParentCategories (uses pointer comparison, removal does not keep order)
+// Sets related.R.Parent.
+// Uses the global database handle and panics on error.
+func (o *Category) RemoveParentCategoriesGP(related ...*Category) {
+	if err := o.RemoveParentCategories(boil.GetDB(), related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// RemoveParentCategories relationships from objects passed in.
+// Removes related items from R.ParentCategories (uses pointer comparison, removal does not keep order)
+// Sets related.R.Parent.
+func (o *Category) RemoveParentCategories(exec boil.Executor, related ...*Category) error {
+	var err error
+	for _, rel := range related {
+		rel.ParentID.Valid = false
+		if rel.R != nil {
+			rel.R.Parent = nil
+		}
+		if err = rel.Update(exec, "parent_id"); err != nil {
+			return err
+		}
+	}
+	if o.R == nil {
+		return nil
+	}
+
+	for _, rel := range related {
+		for i, ri := range o.R.ParentCategories {
+			if rel != ri {
+				continue
+			}
+
+			ln := len(o.R.ParentCategories)
+			if ln > 1 && i < ln-1 {
+				o.R.ParentCategories[i] = o.R.ParentCategories[ln-1]
+			}
+			o.R.ParentCategories = o.R.ParentCategories[:ln-1]
+			break
 		}
 	}
 

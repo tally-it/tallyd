@@ -6,35 +6,17 @@ create table categories
   name        varchar(255)     not null,
   is_visible  bit default b'1' not null,
   is_active   bit default b'0' not null,
-  is_root     bit default b'1' not null
+  parent_id   int              null,
+  constraint categories_categories_category_id_fk
+  foreign key (parent_id) references categories (category_id)
+    on update cascade
+    on delete cascade
 )
   engine = InnoDB
   charset = utf8mb4;
 
-CREATE TABLE category_parent_map
-(
-  cateogry_id        INT AUTO_INCREMENT,
-  parent_category_id INT NOT NULL,
-  PRIMARY KEY (cateogry_id, parent_category_id)
-)
-  ENGINE = InnoDB
-  CHARSET = utf8mb4;
-
-CREATE TABLE product_category_map
-(
-  product_id  INT AUTO_INCREMENT,
-  category_id INT NOT NULL,
-  PRIMARY KEY (product_id, category_id),
-  CONSTRAINT product_category_map_ibfk_1
-  FOREIGN KEY (category_id) REFERENCES categories (category_id)
-    ON UPDATE CASCADE
-    ON DELETE CASCADE
-)
-  ENGINE = InnoDB
-  CHARSET = utf8mb4;
-
-CREATE INDEX product_category_map_ibfk_1
-  ON product_category_map (category_id);
+create index categories_categories_category_id_fk
+  on categories (parent_id);
 
 CREATE TABLE products
 (
@@ -56,11 +38,25 @@ CREATE TABLE products
 CREATE INDEX products_SKU_index
   ON products (SKU_id);
 
-ALTER TABLE product_category_map
-  ADD CONSTRAINT product_category_map_ibfk_2
-FOREIGN KEY (product_id) REFERENCES products (product_id)
-  ON UPDATE CASCADE
-  ON DELETE CASCADE;
+create table product_category_map
+(
+  product_id  int not null,
+  category_id int not null,
+  primary key (product_id, category_id),
+  constraint product_category_map_ibfk_2
+  foreign key (product_id) references products (product_id)
+    on update cascade
+    on delete cascade,
+  constraint product_category_map_ibfk_1
+  foreign key (category_id) references categories (category_id)
+    on update cascade
+    on delete cascade
+)
+  engine = InnoDB
+  charset = utf8mb4;
+
+create index product_category_map_ibfk_1
+  on product_category_map (category_id);
 
 CREATE TABLE stock
 (
