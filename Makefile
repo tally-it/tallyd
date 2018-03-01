@@ -28,3 +28,6 @@ update-db: embed-migration-scripts migrate-db generate-models
 get-deps:
 	go get -u -v github.com/jteeuwen/go-bindata/...
 	go get -u -v github.com/vattle/sqlboiler/...
+
+swagger:
+    swagger generate spec -o -m swagger.json .
