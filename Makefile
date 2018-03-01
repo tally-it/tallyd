@@ -9,7 +9,7 @@ generate-models:
 	@which sqlboiler > /dev/null
 	@echo "generating database model"
 	@-rm repository/sql/models/*
-	@sqlboiler -o repository/sql/models --no-tests --no-hooks mysql
+	@sqlboiler -o repository/sql/models --tinyint-as-bool --no-tests --no-hooks mysql
 	@rm repository/sql/models/gorp_migrations.go
 	@echo "done"
 
