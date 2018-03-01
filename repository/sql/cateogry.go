@@ -30,13 +30,6 @@ func (m *Mysql) AddCategory(ctx context.Context, r contract.AddCategoryBody) (in
 		category.IsActive = boolToString(false)
 	}
 
-	if r.IsRoot == true {
-		category.IsRoot = boolToString(true)
-	} else {
-		category.IsRoot = boolToString(false)
-	}
-
-
 	err := category.Insert(m.db)
 	if err != nil {
 		logger.WithError(err).Error("failed to insert category")
